@@ -418,7 +418,7 @@ footer{margin-top:30px; text-align:center; font-size:0.72rem; color:var(--ink-so
      ===================================================================== -->
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-app.js";
-  import { getFirestore, doc, getDoc, setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore.js";
+  import { initializeFirestore, doc, getDoc, setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore.js";
 
   const firebaseConfig = {
     apiKey: "AIzaSyB6p9UJyODMLVWv-63odncYbWLzlYjkQ0k",
@@ -434,7 +434,15 @@ footer{margin-top:30px; text-align:center; font-size:0.72rem; color:var(--ink-so
     if (!configured) { window.__fb = null; return; }
     try {
       const app = initializeApp(firebaseConfig);
-      const db = getFirestore(app);
+      const db = initializeFirestore(app, {
+        // Corporate proxies/security agents (Zscaler, Netskope, etc.) commonly block Firestore's
+        // default streaming connection while allowing normal HTTPS through. This makes the SDK
+        // auto-detect that situation and fall back to plain long-polling instead, which those
+        // tools don't interfere with. useFetchStreams:false avoids a related fetch-streaming
+        // incompatibility some of the same tools introduce.
+        experimentalAutoDetectLongPolling: true,
+        useFetchStreams: false
+      });
       window.__fb = { db, doc, getDoc, setDoc, deleteDoc };
     } catch (e) {
       console.error('Firebase init failed, falling back to local storage', e);
