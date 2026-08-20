@@ -799,6 +799,11 @@ async function ensureFirebase(){
   fbReadyChecked = true;
 }
 let fbHealthy = true; // flips false when Firestore is unreachable (e.g. blocked by a firewall)
+let fbLastFailureAt = 0;
+const FB_COOLDOWN_MS = 25000; // after a failure, skip retrying Firestore for this long so clicks stay instant
+function fbShouldAttempt(){
+  return fbLastFailureAt === 0 || (Date.now() - fbLastFailureAt) > FB_COOLDOWN_MS;
+}
 function withTimeout(promise, ms=4000){
   return Promise.race([
     promise,
@@ -808,26 +813,26 @@ function withTimeout(promise, ms=4000){
 async function fbGet(key){
   try{
     const snap = await withTimeout(FB.getDoc(FB.doc(FB.db, FB_COLLECTION, key)));
-    fbHealthy = true;
+    fbHealthy = true; fbLastFailureAt = 0;
     return snap.exists() ? (snap.data().value ?? null) : null;
-  }catch(e){ fbHealthy = false; throw e; }
+  }catch(e){ fbHealthy = false; fbLastFailureAt = Date.now(); throw e; }
 }
 async function fbSet(key, value){
   try{
     await withTimeout(FB.setDoc(FB.doc(FB.db, FB_COLLECTION, key), { value, updatedAt: Date.now() }));
-    fbHealthy = true;
-  }catch(e){ fbHealthy = false; throw e; }
+    fbHealthy = true; fbLastFailureAt = 0;
+  }catch(e){ fbHealthy = false; fbLastFailureAt = Date.now(); throw e; }
 }
 async function fbDelete(key){
   try{
     await withTimeout(FB.deleteDoc(FB.doc(FB.db, FB_COLLECTION, key)));
-    fbHealthy = true;
-  }catch(e){ fbHealthy = false; throw e; }
+    fbHealthy = true; fbLastFailureAt = 0;
+  }catch(e){ fbHealthy = false; fbLastFailureAt = Date.now(); throw e; }
 }
 
 async function pGet(key){
   await ensureFirebase();
-  if(FB){ try{ return await fbGet(key); }catch(e){ console.error('firestore get error', e); } }
+  if(FB && fbShouldAttempt()){ try{ return await fbGet(key); }catch(e){ console.error('firestore get error', e); } }
   if(STORAGE){ try{ const r = await STORAGE.get(key); return (r && r.value!==undefined) ? r.value : null; }catch(e){ return null; } }
   if(HAS_LS){ try{ return window.localStorage.getItem(LS_PREFIX+key); }catch(e){ return null; } }
   if(persistenceMode === 'indexeddb'){ try{ return await idbGet(key); }catch(e){ /* fall through */ } }
@@ -835,7 +840,7 @@ async function pGet(key){
 }
 async function pSet(key, value){
   await ensureFirebase();
-  if(FB){ try{ await fbSet(key, value); scheduleLinkedFileSync(); return; }catch(e){ console.error('firestore set error', e); } }
+  if(FB && fbShouldAttempt()){ try{ await fbSet(key, value); scheduleLinkedFileSync(); return; }catch(e){ console.error('firestore set error', e); } }
   if(STORAGE){ try{ await STORAGE.set(key, value); scheduleLinkedFileSync(); return; }catch(e){ console.error('storage error', e); } }
   if(HAS_LS){ try{ window.localStorage.setItem(LS_PREFIX+key, value); scheduleLinkedFileSync(); return; }catch(e){ console.error('storage error', e); } }
   if(persistenceMode === 'indexeddb'){ try{ await idbSet(key, value); scheduleLinkedFileSync(); return; }catch(e){ console.error('idb error', e); } }
@@ -844,7 +849,7 @@ async function pSet(key, value){
 }
 async function pDelete(key){
   await ensureFirebase();
-  if(FB){ try{ await fbDelete(key); scheduleLinkedFileSync(); return; }catch(e){ console.error('firestore delete error', e); } }
+  if(FB && fbShouldAttempt()){ try{ await fbDelete(key); scheduleLinkedFileSync(); return; }catch(e){ console.error('firestore delete error', e); } }
   if(STORAGE){ try{ await STORAGE.delete(key); scheduleLinkedFileSync(); return; }catch(e){ console.error('storage error', e); } }
   if(HAS_LS){ try{ window.localStorage.removeItem(LS_PREFIX+key); scheduleLinkedFileSync(); return; }catch(e){ console.error('storage error', e); } }
   if(persistenceMode === 'indexeddb'){ try{ await idbDelete(key); scheduleLinkedFileSync(); return; }catch(e){ console.error('idb error', e); } }
