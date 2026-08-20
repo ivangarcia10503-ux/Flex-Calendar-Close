@@ -1,0 +1,1836 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>US Flex Close Calendar</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+
+:root{
+  --flex-accent:#0B4F6C;
+  --flex-accent-soft:#E4EEF1;
+  --div-accent:#B5651D;
+  --div-accent-soft:#F7ECDD;
+  --ink:#1B1F23;
+  --ink-soft:#5B6470;
+  --paper:#FAF8F4;
+  --card:#FFFFFF;
+  --line:#E4E0D8;
+  --good:#2F6B3E;
+  --accent: var(--flex-accent);
+  --accent-soft: var(--flex-accent-soft);
+}
+*{box-sizing:border-box;}
+body{
+  margin:0; background:var(--paper); color:var(--ink);
+  font-family:'Inter',system-ui,sans-serif;
+  -webkit-font-smoothing:antialiased;
+}
+.wrap{max-width:920px;margin:0 auto;padding:28px 20px 60px;}
+.page{max-width:1180px;margin:0 auto;padding:28px 20px 60px;display:grid;grid-template-columns:1fr 300px;gap:24px;align-items:start;}
+.main{min-width:0;}
+@media (max-width:900px){ .page{grid-template-columns:1fr;} }
+h1{
+  font-family:'Fraunces',serif; font-weight:700; font-size:1.9rem;
+  margin:0 0 2px; letter-spacing:-0.01em;
+}
+.sub{color:var(--ink-soft); font-size:0.92rem; margin-bottom:20px;}
+.mono{font-family:'IBM Plex Mono',monospace;}
+
+/* ---- Month nav ---- */
+.monthbar{
+  display:flex; align-items:center; justify-content:space-between;
+  background:var(--card); border:1px solid var(--line); border-radius:14px;
+  padding:12px 16px; margin-bottom:16px; gap:12px; flex-wrap:wrap;
+}
+.monthbar .center{display:flex; align-items:center; gap:10px;}
+.navbtn{
+  border:1px solid var(--line); background:var(--paper); border-radius:8px;
+  width:32px; height:32px; cursor:pointer; font-size:1rem; color:var(--ink);
+  display:flex; align-items:center; justify-content:center;
+}
+.navbtn:hover{background:var(--accent-soft); border-color:var(--accent);}
+.monthlabel{font-family:'Fraunces',serif; font-weight:600; font-size:1.15rem; min-width:170px; text-align:center;}
+.qe-badge{
+  font-size:0.68rem; font-weight:600; letter-spacing:.04em; text-transform:uppercase;
+  padding:4px 9px; border-radius:999px; background:var(--div-accent-soft); color:var(--div-accent);
+  border:1px solid var(--div-accent);
+}
+.today-link{font-size:0.78rem; color:var(--accent); cursor:pointer; text-decoration:underline; text-underline-offset:2px;}
+
+/* ---- Save / Load backup bar ---- */
+.savebar{
+  display:flex; align-items:center; gap:14px; flex-wrap:wrap;
+  padding:0 2px 12px; margin-bottom:2px;
+}
+.savebar-btn{
+  border:none; background:none; padding:0; cursor:pointer;
+  font-size:0.76rem; font-weight:500; color:var(--accent);
+  text-decoration:underline; text-underline-offset:2px;
+}
+.savebar-btn.load{color:var(--ink-soft);}
+.savebar-btn:hover{opacity:0.75;}
+.save-status{
+  font-size:0.72rem; color:var(--good); opacity:0; transition:opacity .25s; flex:1; min-width:120px;
+}
+.save-status.show{opacity:1;}
+.link-status{font-size:0.7rem; color:var(--ink-soft);}
+
+/* ---- Month/year jump picker ---- */
+.calbtn-wrap{position:relative; display:flex; align-items:center; gap:8px;}
+.calbtn{
+  border:1px solid var(--line); background:var(--paper); border-radius:8px;
+  width:32px; height:32px; cursor:pointer; font-size:0.95rem; color:var(--ink);
+  display:flex; align-items:center; justify-content:center;
+}
+.calbtn:hover{background:var(--accent-soft); border-color:var(--accent);}
+.cal-popover{
+  position:absolute; top:42px; left:50%; transform:translateX(-50%); z-index:30;
+  background:var(--card); border:1px solid var(--line); border-radius:12px; padding:12px;
+  box-shadow:0 10px 28px rgba(0,0,0,.14); width:224px;
+}
+.cal-popover-year{
+  display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;
+  font-family:'IBM Plex Mono',monospace; font-weight:600; font-size:0.92rem;
+}
+.cal-popover-year button{
+  border:1px solid var(--line); background:var(--paper); border-radius:6px; width:26px; height:26px; cursor:pointer;
+}
+.cal-popover-year button:hover{background:var(--accent-soft); border-color:var(--accent);}
+.cal-popover-months{display:grid; grid-template-columns:repeat(3,1fr); gap:6px;}
+.cal-month-btn{
+  border:1px solid var(--line); background:var(--paper); border-radius:7px; padding:8px 0; font-size:0.78rem;
+  cursor:pointer; position:relative; color:var(--ink);
+}
+.cal-month-btn:hover{background:var(--accent-soft); border-color:var(--accent);}
+.cal-month-btn.sel{background:var(--accent); color:#fff; border-color:var(--accent);}
+.cal-month-btn.qe:after{
+  content:''; position:absolute; top:4px; right:6px; width:4px; height:4px; border-radius:50%; background:var(--div-accent);
+}
+.cal-month-btn.sel.qe:after{background:#fff;}
+
+/* ---- Tabs ---- */
+.tabs{display:flex; gap:8px; margin-bottom:16px;}
+.tab{
+  flex:1; padding:13px 16px; border-radius:12px; border:1.5px solid var(--line);
+  background:var(--card); cursor:pointer; text-align:left; transition:.15s;
+}
+.tab .t-name{font-family:'Fraunces',serif; font-weight:600; font-size:1.05rem;}
+.tab .t-meta{font-size:0.76rem; color:var(--ink-soft); margin-top:2px;}
+.tab.active.flex{border-color:var(--flex-accent); background:var(--flex-accent-soft);}
+.tab.active.div{border-color:var(--div-accent); background:var(--div-accent-soft);}
+.tab.active .t-name{color:var(--accent);}
+
+/* ---- Progress ---- */
+.progress-row{display:flex; align-items:center; gap:10px; margin-bottom:18px;}
+.progress-track{flex:1; height:8px; background:var(--line); border-radius:99px; overflow:hidden;}
+.progress-fill{height:100%; background:var(--accent); border-radius:99px; transition:width .3s;}
+.progress-txt{font-size:0.78rem; color:var(--ink-soft); white-space:nowrap;}
+
+/* ---- Ledger ruler ---- */
+.ruler-wrap{
+  background:var(--card); border:1px solid var(--line); border-radius:14px;
+  padding:18px 18px 12px; margin-bottom:20px; overflow-x:auto;
+}
+.ruler-title{font-size:0.72rem; text-transform:uppercase; letter-spacing:.06em; color:var(--ink-soft); margin-bottom:10px; font-weight:600;}
+.ruler{position:relative; height:64px; min-width:760px;}
+.ruler-line{position:absolute; left:0; right:0; top:32px; height:2px; background:var(--line);}
+.ruler-tick{position:absolute; top:26px; width:1px; height:14px; background:var(--line);}
+.ruler-tick.zero{background:var(--ink); width:2px;}
+.ruler-ticklabel{position:absolute; top:44px; font-size:0.62rem; font-family:'IBM Plex Mono',monospace; color:var(--ink-soft); transform:translateX(-50%);}
+.ruler-dot{
+  position:absolute; top:24px; width:11px; height:11px; border-radius:50%;
+  background:var(--accent); border:2px solid var(--card); cursor:pointer; transform:translateX(-50%);
+  box-shadow:0 1px 3px rgba(0,0,0,.2);
+}
+.ruler-dot.done{background:var(--good);}
+.ruler-dot:hover{transform:translateX(-50%) scale(1.3);}
+
+/* ---- General timeline banner ---- */
+.banner{
+  display:flex; gap:18px; flex-wrap:wrap; background:var(--div-accent-soft);
+  border:1px solid var(--div-accent); border-radius:12px; padding:12px 16px; margin-bottom:18px;
+  font-size:0.83rem;
+}
+.banner b{color:var(--div-accent);}
+.banner .item{display:flex; gap:6px; align-items:baseline;}
+
+/* ---- Phase group ---- */
+.phase-head{
+  font-family:'Fraunces',serif; font-weight:600; font-size:0.98rem;
+  margin:22px 0 10px; padding-bottom:6px; border-bottom:2px solid var(--accent);
+  display:flex; align-items:center; gap:8px;
+}
+.phase-count{font-size:0.7rem; font-family:'IBM Plex Mono',monospace; color:var(--ink-soft); font-weight:400;}
+
+/* ---- Task card ---- */
+.card{
+  background:var(--card); border:1px solid var(--line); border-radius:12px;
+  padding:13px 15px; margin-bottom:9px; display:flex; gap:12px; align-items:flex-start;
+  transition:.15s;
+}
+.card.done{opacity:0.55;}
+.card.mine{box-shadow:inset 3px 0 0 var(--accent);}
+.card.has-note{background:#FFFBEE; border-color:#E8C766;}
+.card.has-note.mine{box-shadow:inset 3px 0 0 var(--accent), inset 0 0 0 1px #E8C766;}
+@keyframes flashcard{
+  0%{box-shadow:0 0 0 0 rgba(213,158,26,.55);}
+  60%{box-shadow:0 0 0 8px rgba(213,158,26,0);}
+  100%{box-shadow:0 0 0 0 rgba(213,158,26,0);}
+}
+.card.flash{animation:flashcard 1s ease-out 2;}
+.chk{
+  width:20px; height:20px; border-radius:6px; border:1.5px solid var(--ink-soft);
+  flex-shrink:0; margin-top:2px; cursor:pointer; display:flex; align-items:center; justify-content:center;
+  background:var(--card); color:#fff; font-size:0.75rem;
+}
+.chk.checked{background:var(--good); border-color:var(--good);}
+.card-body{flex:1; min-width:0;}
+.card-top{display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; align-items:baseline;}
+.card-title{font-weight:600; font-size:0.94rem;}
+.card-title .strike{text-decoration:line-through;}
+.field-edit-btn{border:none; background:none; color:var(--accent); cursor:pointer; font-size:0.72rem; margin-left:4px; vertical-align:middle;}
+.field-edit-btn:hover{text-decoration:underline;}
+.field-edit-block{display:flex; flex-direction:column; gap:6px; width:100%;}
+.field-edit-row{display:flex; gap:6px; flex-wrap:wrap;}
+.field-edit-input{
+  font-family:'Inter',sans-serif; font-size:0.84rem; border:1px solid var(--line); border-radius:7px;
+  padding:6px 8px; background:#fff; color:var(--ink); flex:1; min-width:120px;
+}
+.field-edit-input.name-input{font-weight:600;}
+.field-edit-actions{display:flex; gap:8px;}
+.field-save-btn{background:var(--accent); color:#fff; border:none; border-radius:7px; padding:5px 12px; font-size:0.74rem; font-weight:600; cursor:pointer;}
+.field-cancel-btn{background:var(--line); color:var(--ink); border:none; border-radius:7px; padding:5px 12px; font-size:0.74rem; font-weight:600; cursor:pointer;}
+.field-edit-error{font-size:0.76rem; color:#B33;}
+.taskid{
+  font-family:'IBM Plex Mono',monospace; font-size:0.68rem; color:var(--accent);
+  background:var(--accent-soft); padding:1px 6px; border-radius:5px; margin-right:6px;
+}
+.datechip{
+  font-family:'IBM Plex Mono',monospace; font-size:0.72rem; font-weight:600;
+  background:var(--paper); border:1px solid var(--line); padding:3px 8px; border-radius:7px;
+  white-space:nowrap;
+}
+.card-meta{font-size:0.78rem; color:var(--ink-soft); margin-top:4px;}
+.card-meta b{color:var(--ink); font-weight:600;}
+.deadline-raw{font-size:0.7rem; color:var(--ink-soft); margin-top:2px;}
+details.notes{margin-top:6px;}
+details.notes summary{
+  font-size:0.74rem; color:var(--accent); cursor:pointer; list-style:none; font-weight:500;
+}
+details.notes summary::-webkit-details-marker{display:none;}
+details.notes summary:before{content:"+ notes"; }
+details.notes[open] summary:before{content:"– notes";}
+details.notes .notebody{font-size:0.8rem; color:var(--ink-soft); margin-top:5px; line-height:1.45; padding:8px 10px; background:var(--paper); border-radius:8px;}
+.notebody-text{white-space:pre-wrap;}
+.note-edit-btn{
+  border:none; background:none; color:var(--accent); font-size:0.7rem; font-weight:600; cursor:pointer;
+  padding:0; margin-top:6px;
+}
+.note-edit-btn:hover{text-decoration:underline;}
+.note-edit-area{
+  width:100%; font-family:'Inter',sans-serif; font-size:0.8rem; border:1px solid var(--line); border-radius:7px;
+  padding:7px 8px; resize:vertical; min-height:70px; color:var(--ink); background:#fff;
+}
+.note-edit-actions{display:flex; gap:8px; margin-top:6px;}
+.note-edit-actions button{
+  border:none; border-radius:7px; padding:5px 12px; font-size:0.74rem; font-weight:600; cursor:pointer;
+}
+.note-save{background:var(--accent); color:#fff;}
+.note-cancel{background:var(--line); color:var(--ink);}
+
+/* ---- References / guides section ---- */
+details.refs{margin-top:6px;}
+details.refs summary{
+  font-size:0.74rem; color:var(--div-accent); cursor:pointer; list-style:none; font-weight:500;
+}
+details.refs summary::-webkit-details-marker{display:none;}
+details.refs summary:before{content:"+ references";}
+details.refs[open] summary:before{content:"– references";}
+.refs-body{margin-top:5px; padding:8px 10px; background:var(--paper); border-radius:8px;}
+.ref-item{display:flex; align-items:center; gap:6px; font-size:0.78rem; padding:4px 0; border-bottom:1px dashed var(--line);}
+.ref-item:last-of-type{border-bottom:none;}
+.ref-label{font-weight:600; white-space:nowrap;}
+.ref-link{color:var(--div-accent); text-decoration:underline; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1; min-width:0;}
+.ref-path{color:var(--ink-soft); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1; min-width:0; font-size:0.72rem;}
+.ref-del{border:none; background:none; color:var(--ink-soft); cursor:pointer; font-size:0.8rem; flex-shrink:0;}
+.ref-del:hover{color:#B33;}
+.ref-empty{font-size:0.76rem; color:var(--ink-soft); padding:2px 0 8px;}
+.ref-add{display:flex; flex-direction:column; gap:6px; margin-top:8px;}
+.ref-add input{
+  font-family:'Inter',sans-serif; font-size:0.76rem; border:1px solid var(--line); border-radius:7px;
+  padding:6px 8px; background:#fff; color:var(--ink);
+}
+.ref-add-row{display:flex; gap:6px; align-items:stretch;}
+.ref-add-row input{flex:1; min-width:0;}
+.ref-browse-btn{
+  flex-shrink:0; background:var(--paper); color:var(--ink); border:1px solid var(--line); border-radius:7px;
+  padding:6px 10px; font-size:0.72rem; font-weight:600; cursor:pointer; white-space:nowrap;
+}
+.ref-browse-btn:hover{background:var(--div-accent-soft); border-color:var(--div-accent);}
+.ref-add > .ref-add-btn{
+  align-self:flex-end; background:var(--div-accent); color:#fff; border:none; border-radius:7px;
+  padding:5px 12px; font-size:0.74rem; font-weight:600; cursor:pointer;
+}
+.ref-add > .ref-add-btn:hover{opacity:0.9;}
+.contact-line{font-size:0.72rem; color:var(--div-accent); margin-top:4px;}
+.pin-badge{
+  font-size:0.68rem; font-weight:600; color:#8A6A15; background:#FBEFC8; border:1px solid #E8C766;
+  padding:2px 7px; border-radius:99px; cursor:pointer; white-space:nowrap;
+}
+.pin-badge:hover{background:#F4E1A0;}
+.qtoggle{
+  font-size:0.78rem; color:var(--ink-soft); text-align:center; margin:10px 0 4px;
+  cursor:pointer; text-decoration:underline; text-underline-offset:2px;
+}
+.hint{font-size:0.72rem; color:var(--ink-soft); text-align:center; margin-top:26px; line-height:1.6;}
+footer{margin-top:30px; text-align:center; font-size:0.72rem; color:var(--ink-soft);}
+
+/* ---- Custom task tag / delete ---- */
+.custom-tag{
+  font-size:0.62rem; font-weight:600; text-transform:uppercase; letter-spacing:.03em;
+  color:var(--ink-soft); background:var(--paper); border:1px solid var(--line);
+  padding:1px 6px; border-radius:99px; margin-left:6px;
+}
+.task-del-btn{
+  border:none; background:none; color:var(--ink-soft); cursor:pointer; font-size:0.78rem; margin-left:4px;
+}
+.task-del-btn:hover{color:#B33;}
+
+/* ---- Hidden tasks (restore) ---- */
+.hidden-toggle{font-size:0.78rem; color:var(--ink-soft); text-decoration:underline; cursor:pointer;}
+.hidden-panel{
+  background:var(--card); border:1px solid var(--line); border-radius:12px; padding:10px 14px; margin-bottom:14px;
+  display:flex; flex-direction:column; gap:8px;
+}
+.hidden-item{display:flex; justify-content:space-between; align-items:center; font-size:0.8rem; gap:10px;}
+.hidden-item .hi-name{color:var(--ink-soft);}
+.hidden-restore-btn{
+  border:1px solid var(--accent); color:var(--accent); background:none; border-radius:7px;
+  padding:3px 11px; font-size:0.72rem; font-weight:600; cursor:pointer; white-space:nowrap;
+}
+.hidden-restore-btn:hover{background:var(--accent-soft);}
+
+/* ---- Add-task (New Checkbox) ---- */
+.addtask-bar{display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; gap:12px;}
+.addtask-btn{
+  background:var(--accent); color:#fff; border:none; border-radius:9px;
+  padding:9px 16px; font-size:0.84rem; font-weight:600; cursor:pointer;
+}
+.addtask-btn:hover{opacity:0.9;}
+.addtask-form{
+  background:var(--card); border:1px solid var(--line); border-radius:14px;
+  padding:16px; margin-bottom:18px; display:flex; flex-direction:column; gap:12px;
+}
+.addtask-form h3{
+  font-family:'Fraunces',serif; font-weight:600; font-size:1rem; margin:0;
+}
+.addtask-grid{display:grid; grid-template-columns:1fr 1fr; gap:12px;}
+.addtask-form label{
+  display:flex; flex-direction:column; gap:4px; font-size:0.76rem; font-weight:600; color:var(--ink-soft);
+}
+.addtask-form label.block{grid-column:1 / -1;}
+.addtask-form .opt{font-weight:400; text-transform:none; letter-spacing:0;}
+.addtask-form select, .addtask-form input, .addtask-form textarea{
+  font-family:'Inter',sans-serif; font-size:0.84rem; font-weight:400; color:var(--ink);
+  border:1px solid var(--line); border-radius:8px; padding:8px 9px; background:var(--paper); resize:vertical;
+}
+.addtask-form textarea{min-height:56px;}
+.at-error{font-size:0.78rem; color:#B33; display:none;}
+.at-error.show{display:block;}
+.addtask-actions{display:flex; justify-content:flex-end; gap:8px;}
+.atbtn-cancel{background:var(--line); color:var(--ink); border:none; border-radius:8px; padding:8px 16px; font-size:0.82rem; font-weight:600; cursor:pointer;}
+.atbtn-submit{background:var(--accent); color:#fff; border:none; border-radius:8px; padding:8px 16px; font-size:0.82rem; font-weight:600; cursor:pointer;}
+.atbtn-submit:hover, .atbtn-cancel:hover{opacity:0.9;}
+@media (max-width:560px){ .addtask-grid{grid-template-columns:1fr;} }
+
+/* ---- Notes panel (right side) ---- */
+.notes-panel{
+  position:sticky; top:20px; background:var(--card); border:1px solid var(--line); border-radius:14px;
+  padding:16px; display:flex; flex-direction:column; gap:12px; max-height:calc(100vh - 40px); overflow-y:auto;
+}
+.notes-panel h2{
+  font-family:'Fraunces',serif; font-size:1.05rem; font-weight:600; margin:0; display:flex; align-items:center; gap:8px;
+}
+.notes-count{
+  font-family:'IBM Plex Mono',monospace; font-size:0.66rem; color:var(--ink-soft); font-weight:400;
+  background:var(--paper); border:1px solid var(--line); border-radius:99px; padding:1px 8px;
+}
+.notes-sub{font-size:0.74rem; color:var(--ink-soft); margin-top:-8px;}
+.note-form{display:flex; flex-direction:column; gap:8px; border-bottom:1px solid var(--line); padding-bottom:14px;}
+.note-form select, .note-form textarea{
+  font-family:'Inter',sans-serif; font-size:0.8rem; border:1px solid var(--line); border-radius:8px;
+  padding:8px 9px; background:var(--paper); color:var(--ink); resize:vertical;
+}
+.note-form textarea{min-height:64px;}
+.note-form button{
+  align-self:flex-end; background:var(--accent); color:#fff; border:none; border-radius:8px;
+  padding:7px 14px; font-size:0.8rem; font-weight:600; cursor:pointer;
+}
+.note-form button:hover{opacity:0.9;}
+.note-form button:disabled{opacity:0.4; cursor:not-allowed;}
+.note-list{display:flex; flex-direction:column; gap:8px;}
+.note-item{
+  background:var(--paper); border:1px solid var(--line); border-radius:10px; padding:9px 10px;
+}
+.note-item.flash{animation:flashcard 1s ease-out 2;}
+.note-item .n-top{display:flex; justify-content:space-between; align-items:flex-start; gap:6px;}
+.note-item .n-task{font-size:0.72rem; font-weight:600; color:var(--accent); cursor:pointer;}
+.note-item .n-task:hover{text-decoration:underline;}
+.note-item .n-del{
+  border:none; background:none; color:var(--ink-soft); cursor:pointer; font-size:0.85rem; line-height:1;
+  padding:0 2px;
+}
+.note-item .n-del:hover{color:#B33;}
+.note-item .n-text{font-size:0.8rem; color:var(--ink); margin-top:4px; line-height:1.4; white-space:pre-wrap;}
+.note-item .n-tab-tag{font-size:0.62rem; text-transform:uppercase; letter-spacing:.03em; color:var(--ink-soft); margin-top:3px;}
+.note-empty{font-size:0.78rem; color:var(--ink-soft); text-align:center; padding:14px 4px;}
+@media (max-width:900px){ .notes-panel{position:static; max-height:none;} }
+</style>
+</head>
+<body>
+<div class="page">
+<div class="main">
+  <h1>US Flex Close Calendar</h1>
+  <div class="sub">Deadlines auto-calculated from workday (WD) offsets against each month's close anchor. Check items off as you go — your progress is saved per month.</div>
+
+  <div class="monthbar">
+    <div class="center">
+      <button class="navbtn" id="prevMonth">‹</button>
+      <div class="calbtn-wrap">
+        <div class="monthlabel" id="monthLabel" style="cursor:pointer;" title="Jump to month/year"></div>
+        <button class="calbtn" id="calBtn" title="Jump to month/year">🗓️</button>
+        <div class="cal-popover" id="calPopover" style="display:none;">
+          <div class="cal-popover-year">
+            <button id="calYearPrev">‹</button>
+            <span id="calYearLabel"></span>
+            <button id="calYearNext">›</button>
+          </div>
+          <div class="cal-popover-months" id="calMonthGrid"></div>
+        </div>
+      </div>
+      <button class="navbtn" id="nextMonth">›</button>
+    </div>
+    <div class="center">
+      <span class="qe-badge" id="qeBadge" style="display:none;">Quarter End</span>
+      <span class="today-link" id="todayLink">Jump to current month</span>
+    </div>
+  </div>
+
+  <div class="savebar">
+    <button class="savebar-btn save" id="saveChangesBtn">💾 Save</button>
+    <button class="savebar-btn load" id="loadChangesBtn">📂 Load</button>
+    <input type="file" id="loadChangesInput" accept="application/json" style="display:none;">
+    <span class="link-status" id="linkStatus"></span>
+    <span class="save-status" id="saveStatus"></span>
+  </div>
+
+  <div class="tabs">
+    <div class="tab flex active" id="tabFlex" data-tab="flex">
+      <div class="t-name">Flex Close</div>
+      <div class="t-meta">Rachel's team — Perfect Pay, EOT, ProCare/Lender pass-through, Suspense, UNL, Commission</div>
+    </div>
+    <div class="tab div" id="tabDiv" data-tab="div">
+      <div class="t-name">Division Close</div>
+      <div class="t-meta">Corporate close — Bad Debt, AR Aging, Unacceptable Contingencies, Unapplied Cash</div>
+    </div>
+  </div>
+
+  <div class="progress-row">
+    <div class="progress-track"><div class="progress-fill" id="progFill"></div></div>
+    <div class="progress-txt" id="progTxt">0 / 0 complete</div>
+  </div>
+
+  <div class="addtask-bar">
+    <div class="hidden-toggle" id="hiddenToggle"></div>
+    <button class="addtask-btn" id="addTaskBtn">+ New checkbox</button>
+  </div>
+  <div class="hidden-panel" id="hiddenPanel" style="display:none;"></div>
+  <div class="addtask-form" id="addTaskForm" style="display:none;">
+    <h3>Add a checkbox to <span id="atTabLabel"></span></h3>
+    <div class="addtask-grid">
+      <label>Section
+        <select id="atPhase"></select>
+      </label>
+      <label>Task name
+        <input type="text" id="atName" placeholder="e.g. Confirm Vocera reconciliation">
+      </label>
+    </div>
+    <div class="addtask-grid">
+      <label>WD number
+        <input type="text" id="atWD" placeholder="e.g. -1, 0, +5, 10">
+      </label>
+      <label>Assigned to (preparer)
+        <input type="text" id="atPreparer" placeholder="e.g. I. Garcia">
+      </label>
+    </div>
+    <div style="font-size:0.72rem; color:var(--ink-soft); margin-top:-6px;">Note: WD+N is the Nth business day of <b>this</b> month (WD+1 = 1st business day). WD-1 is the one exception — the last business day of the <b>previous</b> month. Other negative values (WD-2, etc.) count back from this month's own month-end.</div>
+    <label>Reviewer <span class="opt">(optional)</span>
+      <input type="text" id="atReviewer" placeholder="e.g. K. Hogg">
+    </label>
+    <label class="block">Notes <span class="opt">(optional)</span>
+      <textarea id="atNotes" placeholder="How to complete this step..."></textarea>
+    </label>
+    <div class="addtask-grid">
+      <label>Reference label <span class="opt">(optional)</span>
+        <input type="text" id="atRefLabel" placeholder="e.g. SOP.docx">
+      </label>
+      <label>Reference link/path <span class="opt">(optional)</span>
+        <input type="text" id="atRefUrl" placeholder="SharePoint, Drive, network path">
+      </label>
+    </div>
+    <div class="at-error" id="atError"></div>
+    <div class="addtask-actions">
+      <button class="atbtn-cancel" id="atCancel">Cancel</button>
+      <button class="atbtn-submit" id="atSubmit">Add checkbox</button>
+    </div>
+  </div>
+
+  <div class="ruler-wrap">
+    <div class="ruler-title">Workday ruler — this month</div>
+    <div class="ruler" id="ruler"></div>
+    <div class="ruler-title" id="rulerNote" style="margin-top:8px; text-transform:none; font-weight:400; letter-spacing:normal;"></div>
+  </div>
+
+  <div id="bannerSlot"></div>
+  <div class="qtoggle" id="qToggle" style="display:none;"></div>
+  <div id="taskList"></div>
+
+  <div class="hint">WD0 = last business day of the month being closed. Weekends are skipped; company holidays are <b>not</b> factored in, so confirm dates that fall near a holiday. "Last WD of Prior Month" and "Mid-Month" deadlines are shown as text since they don't compute off this month's close.<br><span id="persistHint"></span></div>
+  <footer>Source: US Flex – Close Schedule.xlsx · Personal tracker, not synced with the team</footer>
+</div>
+
+<aside class="notes-panel">
+  <h2>Notes <span class="notes-count" id="notesCount">0</span></h2>
+  <div class="notes-sub">Add a note and link it to any checklist item — the item will be highlighted so it's easy to spot what still needs review.</div>
+  <div class="note-form">
+    <select id="noteTaskSelect"></select>
+    <textarea id="noteText" placeholder="What needs review, or what did you work on..."></textarea>
+    <button id="noteAddBtn">Add note</button>
+  </div>
+  <div class="note-list" id="noteList"></div>
+</aside>
+</div>
+
+<script>
+/* ---------------- Business day engine ---------------- */
+function isWeekend(d){ const w=d.getDay(); return w===0||w===6; }
+function lastBizDayOfMonth(year, monthIdx){
+  let d = new Date(year, monthIdx+1, 0);
+  while(isWeekend(d)) d.setDate(d.getDate()-1);
+  return d;
+}
+function addBizDays(anchor, n){
+  let d = new Date(anchor);
+  let step = n>=0?1:-1;
+  let count = 0;
+  const target = Math.abs(n);
+  while(count < target){
+    d.setDate(d.getDate()+step);
+    if(!isWeekend(d)) count++;
+  }
+  return d;
+}
+function isQuarterEndMonth(monthIdx){ return [2,5,8,11].includes(monthIdx); } // Mar,Jun,Sep,Dec (0-indexed)
+function fmtDate(d){
+  return d.toLocaleDateString('en-US',{weekday:'short', month:'short', day:'numeric'});
+}
+function fmtShort(d){
+  return d.toLocaleDateString('en-US',{month:'short', day:'numeric'});
+}
+
+/* ---------------- Data ---------------- */
+// offset: business days from this month's WD0 anchor (last business day of month)
+// offsetQE: alternate offset used only when the selected month is a quarter-end month
+// anchor: 'this' (default) or 'prior' (uses last business day of PRIOR month as WD0)
+// cadence: 'monthly' | 'quarterly' (quarterly tasks are hidden outside Mar/Jun/Sep/Dec unless toggled)
+// deadlines: optional array of {offset, note} for tasks with multiple due dates in one month
+
+const FLEX_TASKS = [
+  {id:'f1', taskId:'S1', phase:'Pre-Close', task:'Perfect Pay', deliverable:'Perfect Pay', preparer:'J. Short', reviewer:'K. Hogg & DOA approvals', cadence:'monthly', offset:-1, note:'', raw:'WD-1',
+    notes:'Ensure Perfect Pay is completed, sign offs are obtained and retained per DOA, and submission occurs for lender payment.'},
+  {id:'f2', taskId:'E1', phase:'Control', task:'End of Term', deliverable:'RTR-FS-06', preparer:'B. Coville', reviewer:'K. Hogg', cadence:'monthly', offset:1, note:'12pm EST', raw:'WD+1 (12pm EST)',
+    notes:'Complete RTR-FS-06.'},
+  {id:'f3', taskId:'B1', phase:'Control', task:'Bad Debt', deliverable:'Bad Debt Reserve', preparer:'—', reviewer:'K. Hogg', cadence:'monthly', offset:1, note:'7pm EST', raw:'WD+1 (7pm EST)',
+    notes:'Complete Flex Bad Debt Reserve and record adjustment in GL (if applicable). This includes RTR-FS-06 risk, perfect pay reconciliation adjustments, etc.'},
+  {id:'f4', taskId:'R1', phase:'Close', task:'Results', deliverable:'Order Results', preparer:'C. Lounsbery', reviewer:'R. Krider', cadence:'monthly', offset:1, note:'12pm EST', raw:'WD+1 (12pm EST)',
+    notes:'Submit to M. Pask team for final completion.'},
+  {id:'f5', taskId:'R2', phase:'Close', task:'Misc reporting', deliverable:'Misc Income/Expense reporting', preparer:'M. Berlage', reviewer:'—', cadence:'monthly',
+    deadlines:[{offset:-1,note:'10AM EST'},{offset:1,note:'10AM EST'},{offset:2,note:'10AM EST'},{offset:3,note:'10AM EST'}], raw:'WD-1 / WD+1 / WD+2 / WD+3 (10AM EST)',
+    notes:'Send to leadership throughout close to monitor movements in Misc.'},
+  {id:'f6', taskId:'C1', phase:'Record', task:'Commission', deliverable:'RFM Commission Accrual', preparer:'R. Krider', reviewer:'—', cadence:'monthly', offset:1, note:'5pm EST', raw:'WD+1 (5pm EST)',
+    notes:'Submit to P. Lange for booking.'},
+  {id:'f7', taskId:'C2', phase:'Payroll', task:'Commission', deliverable:'RFM Commission Payment', preparer:'M. Berlage', reviewer:'R. Krider', cadence:'monthly', offset:3, note:'12pm EST', raw:'WD+3 (12pm EST)',
+    notes:'Calculate RFM Commission and submit to payroll for payment processing.'},
+  {id:'f8', taskId:null, phase:'Reconciliation', task:'Perfect Pay', deliverable:'Perfect Pay Reconciliation', preparer:'M. Berlage', reviewer:'K. Hogg', cadence:'monthly', offset:30, offsetQE:15, raw:'WD+15 QE / WD+30 NQE',
+    notes:'Complete perfect pay reconciliation. Evaluate reserve impact and adjust prior to quarter end.'},
+  {id:'f9', taskId:'S2', phase:'Pre-Close', task:'UNL Reserve email', deliverable:'UNL Reserve pool notification', preparer:'M. Berlage', reviewer:'—', cadence:'monthly', offset:-1, raw:'WD-1',
+    contact:'Travis Duran, CRFSSInterco, Brandon Smith, Jaymie Kusih, Tiffany Ritter',
+    notes:'Email sent to Division Contacts signaling position of UNL reserve based on Lender files.'},
+  {id:'f10', taskId:null, phase:'Reconciliation', task:'UNL Rec', deliverable:'UNL Rec', preparer:'M. Berlage', reviewer:'K. Hogg', cadence:'monthly', offset:30, offsetQE:8, raw:'WD+8 QE / WD+30 NQE',
+    notes:'Complete reconciliation of the UNL account by Division.'},
+  {id:'f11', taskId:null, phase:'Close', task:'Captive UFT Entry', deliverable:'UFT Entry', preparer:'M. Berlage', reviewer:'M. Pask', cadence:'monthly', offset:5, raw:'WD+5',
+    notes:'Book AR and tax liability for UFT on Standard Payment Captive deals.'},
+  {id:'f12', taskId:null, phase:'Reporting', task:'Lease Disclosures', deliverable:'Lease Classification Test & Lender Disclosure File', preparer:'M. Pask Team', reviewer:'R. Krider', cadence:'monthly', offset:9, raw:'WD+9',
+    notes:'Send to Complex Accounting team once reviewed.'},
+  {id:'f13', taskId:'C3', phase:'Close', task:'Misc Entries', deliverable:'ProCare Pass through, Lender Pass through, Internal Rental, Captive, and Renewal sharing entries', preparer:'Ivan Garcia', reviewer:'K. Hogg', cadence:'monthly', offset:10, raw:'WD+10', mine:true,
+    notes:'Subject to change as Ivan works with Jacob Reeds to build an SOP on what the RPA bot will process starting August 2026. Prepare entries to pull prior month receipts out of Perfect Pay and pass them through to the respective accounts. Internal Rental and renewal sharing entries are prepared manually; the remaining charge types are reviewed and set up for RPA bot processing.'},
+  {id:'f14', taskId:null, phase:'Reconciliation', task:'Suspense & RNA Recs', deliverable:'Suspense & RNA Recs', preparer:'Amanda Li', reviewer:'Caleb Lounsbery', cadence:'monthly', offset:10, offsetQE:6, raw:'WD+6 QE / WD+10 NQE',
+    notes:'Reconciliation of the monthly standing of Suspense, and dollars received not applied.'},
+  {id:'f15', taskId:null, phase:'Close', task:'AP & AR Detail', deliverable:'AP & AR Detail', preparer:'Caleb Lounsbery', reviewer:'Micah Berlage', cadence:'monthly', offset:10, offsetQE:6, raw:'WD+6 QE / WD+10 NQE',
+    notes:'Coding of entries debited/credited to 140002 during the given month; used to complete the Perfect Pay Rec.'},
+  {id:'f16', taskId:null, phase:'Close', task:'Renewal Sharing Analysis', deliverable:'Monthly renewal sharing breakdown', preparer:'Caleb Lounsbery', reviewer:'Karl Hogg', cadence:'monthly', offset:1, raw:'WD+1',
+    notes:'Sent to leadership to provide analysis of the monthly renewal sharing figure with detailed notes on specific anomalies.'},
+];
+
+const DIV_TASKS = [
+  {id:'d1', phase:'Pre-Close', task:'Bad Debt', deliverable:'PRELIMINARY Specific Reserve List & Captive 3% Reserve Estimate', preparer:'M. Pittillo', reviewer:'R. Krider', cadence:'monthly', anchor:'prior', offset:0, raw:'Last WD of Prior Month',
+    notes:'Meet with Standard Payment, Non-ASC Usage, and ASC Usage AR teams, and Legal to align on quarterly Specific Reserve listing. Also pull in quarterly estimate of Captive Reserve.'},
+  {id:'d2', phase:'Pre-Close', task:'NYU Review', deliverable:'Renewal Billings', preparer:'M. Pittillo', reviewer:'M. Pask', cadence:'quarterly', special:true, raw:'Mid-Month of last month of quarter',
+    notes:'Check Great America/SAP for any renewal payments received during the quarter. Submit a request to the OE team to have renewals billed for any payments received. Billings should be processed in SAP before month end.'},
+  {id:'d3', phase:'Pre-Close', task:'AR', deliverable:'AR Aging - BOBJ only', preparer:'C. Reinbolt', reviewer:'M. Pask', cadence:'quarterly', offset:-2, raw:'WD-2',
+    notes:'Run AR Aging WD-2 and submit to M. Pask team to complete quarter-end bad debt.'},
+  {id:'d4', phase:'Pre-Close', task:'Bad Debt', deliverable:'FINAL Specific Reserve List', preparer:'M. Pittillo', reviewer:'R. Krider', cadence:'quarterly', offset:-2, raw:'WD-2',
+    notes:'Update Specific Listing with any material customer changes before quarter end. Send to M. Pask and D. Krachinsky teams by end of WD-2.'},
+  {id:'d5', phase:'Pre-Close', task:'Bad Debt', deliverable:'Non ASC True Up Reserve', preparer:'K. Earl', reviewer:'B. Dunbar', cadence:'quarterly', offset:-2, raw:'WD-2',
+    notes:'Calculate Non-ASC true-up reserve for "perfect pay" aged AR. Submit amount to M. Pask team for bad debt reconciliation.'},
+  {id:'d6', phase:'Pre-Close', task:'Bad Debt', deliverable:'PRELIMINARY Bad Debt Reserve', preparer:'Various', reviewer:'M. Pask and R. Krider', cadence:'monthly', offset:-1, note:'pm EST', raw:'WD-1 (pm EST)', contact:'See BU Leader Listing',
+    notes:'Complete Preliminary Bad Debt Reserve for each division and communicate by WD-1.'},
+  {id:'d7', phase:'Pre-Close', task:'Perfect Pay', deliverable:'Perfect Pay', preparer:'J. Short', reviewer:'K. Hogg & DOA approvals', cadence:'monthly', offset:-1, raw:'WD-1',
+    notes:'Ensure Perfect Pay is completed, sign offs are obtained and retained per DOA, and submission occurs for lender payment.'},
+  {id:'d8', phase:'Pre-Close', task:'Unacceptable Contingencies', deliverable:'Lease Commencement', preparer:'D. Krachinsky', reviewer:'R. Krider', cadence:'monthly', offset:-1, raw:'WD-1', contact:'See BU Leader Listing',
+    notes:'Send unacceptable contingencies to BU Finance leaders on WD-1 and ask them to book revenue reversal if they do not provide by EOD.'},
+  {id:'d9', phase:'Pre-Close', task:'Prism Revenue Reclass', deliverable:'Revenue Reclass Entry & IPE', preparer:'A. Kone', reviewer:'M. Pask', cadence:'monthly', offset:-1, raw:'WD-1', contact:'See BU Leader Listing',
+    notes:'Only applicable through the remainder of Project Prism.'},
+  {id:'d10', phase:'Close', task:'Bad Debt', deliverable:'3% Captive Revenue', preparer:'M. Pittillo', reviewer:'M. Pask', cadence:'monthly', offset:1, raw:'WD+1',
+    notes:'Submit to M. Pask team for final bad debt general reserve completion.'},
+  {id:'d11', phase:'Close', task:'AR', deliverable:'AR Aging - BOBJ & IPE', preparer:'C. Reinbolt', reviewer:'M. Pask & R. Krider', cadence:'monthly', offset:2, note:'10am CST', raw:'WD+2 (10am CST)',
+    notes:'Submit to M. Pask team for final completion.'},
+  {id:'d12', phase:'Close', task:'Bad Debt', deliverable:'FINAL Bad Debt Reserve', preparer:'Various', reviewer:'R. Krider', cadence:'monthly', offset:2, note:'5pm EST', raw:'WD+2 (5pm EST)', contact:'See BU Leader Listing',
+    notes:'Complete Final Bad Debt Reserve for each division and communicate by WD+2 and book (if applicable).'},
+  {id:'d13', phase:'Close', task:'Unacceptable Contingencies', deliverable:'Lease Commencement', preparer:'D. Krachinsky', reviewer:'R. Krider', cadence:'monthly', offset:2, note:'3pm EST', raw:'WD+2 (3pm EST)', contact:'See BU Leader Listing',
+    notes:'Send unacceptable contingencies to BU Finance leaders on WD+2 and ask them to book revenue reversal and provide evidence of entry. Submit Lease Commencement metric to Flex FP&A and J. Weiss.'},
+  {id:'d14', phase:'Close', task:'Unapplied Cash', deliverable:'Unapplied Cash Metric', preparer:'D. Krachinsky', reviewer:'R. Krider', cadence:'monthly', offset:3, note:'12pm EST', raw:'WD+3 (12pm EST)',
+    notes:'Send UAC metrics to Controller for review. Retain approval.'},
+  {id:'d15', phase:'Close', task:'AR', deliverable:'BS Recast', preparer:'M. Pask', reviewer:'R. Krider', cadence:'quarterly', offset:5, note:'12pm EST', raw:'WD+5 (12pm EST)', contact:'See BU Leader Listing',
+    notes:'Send to BU for entry or book (if applicable).'},
+  {id:'d16', phase:'Close', task:'Bad Debt', deliverable:'Bad Debt Reserve - IPE', preparer:'Various', reviewer:'M. Pask', cadence:'quarterly', offset:5, note:'12pm EST', raw:'WD+5 (12pm EST)',
+    notes:'Complete IPE for each division on final bad debt reserve.'},
+];
+
+const GENERAL_TIMELINE = [
+  {label:'Revenue', offset:1, note:''},
+  {label:'P&L', offset:2, note:'8pm EST'},
+  {label:'BS', offset:4, note:''},
+];
+
+/* ---------------- State ---------------- */
+const today = new Date();
+let curYear = today.getFullYear();
+let curMonth = today.getMonth();
+let activeTab = 'flex';
+let showQuarterlyAlways = false;
+
+// Persistence, in priority order:
+//   1) Claude.ai artifact-host storage (window.storage) — permanent, when running inside Claude.ai
+//   2) Browser localStorage — permanent, tied to this file/browser, used once downloaded and opened standalone
+//   3) IndexedDB — a second, different storage API tried when localStorage is unavailable. Some
+//      browsers (notably Firefox) restrict localStorage for local files as a deliberate security
+//      policy but handle IndexedDB differently, so this is a genuine second attempt, not a workaround.
+//   4) In-memory — session-only fallback if a browser blocks storage entirely (e.g. private windows)
+const STORAGE = (typeof window !== 'undefined' && window.storage) ? window.storage : null;
+const LS_PREFIX = 'usflexclose:';
+function lsAvailable(){
+  try{
+    if(typeof window === 'undefined' || !window.localStorage) return false;
+    const k = LS_PREFIX+'__test__';
+    window.localStorage.setItem(k,'1');
+    window.localStorage.removeItem(k);
+    return true;
+  }catch(e){ return false; }
+}
+const HAS_LS = !STORAGE && lsAvailable();
+const memoryFallback = {};
+
+// --- IndexedDB helper (only used when STORAGE and localStorage are both unavailable) ---
+let idbInstance = null;
+function openIDB(){
+  if(idbInstance) return Promise.resolve(idbInstance);
+  return new Promise((resolve, reject)=>{
+    if(typeof indexedDB === 'undefined'){ reject(new Error('no indexedDB')); return; }
+    let req;
+    try{ req = indexedDB.open('usflexclose-db', 1); }
+    catch(e){ reject(e); return; }
+    req.onupgradeneeded = (e)=>{
+      const db = e.target.result;
+      if(!db.objectStoreNames.contains('kv')) db.createObjectStore('kv');
+    };
+    req.onsuccess = (e)=>{ idbInstance = e.target.result; resolve(idbInstance); };
+    req.onerror = ()=> reject(req.error || new Error('IndexedDB open failed'));
+    req.onblocked = ()=> reject(new Error('IndexedDB blocked'));
+  });
+}
+async function idbGet(key){
+  const db = await openIDB();
+  return new Promise((resolve, reject)=>{
+    const tx = db.transaction('kv','readonly');
+    const req = tx.objectStore('kv').get(key);
+    req.onsuccess = ()=> resolve(req.result !== undefined ? req.result : null);
+    req.onerror = ()=> reject(req.error);
+  });
+}
+async function idbSet(key, value){
+  const db = await openIDB();
+  return new Promise((resolve, reject)=>{
+    const tx = db.transaction('kv','readwrite');
+    tx.objectStore('kv').put(value, key);
+    tx.oncomplete = ()=> resolve();
+    tx.onerror = ()=> reject(tx.error);
+  });
+}
+async function idbDelete(key){
+  const db = await openIDB();
+  return new Promise((resolve, reject)=>{
+    const tx = db.transaction('kv','readwrite');
+    tx.objectStore('kv').delete(key);
+    tx.oncomplete = ()=> resolve();
+    tx.onerror = ()=> reject(tx.error);
+  });
+}
+
+// Undetermined until probed in init() — IndexedDB availability can only be checked async.
+let persistenceMode = STORAGE ? 'host' : (HAS_LS ? 'local' : 'checking');
+async function resolvePersistenceMode(){
+  if(persistenceMode !== 'checking') return;
+  try{
+    await idbSet('__probe__', '1');
+    const v = await idbGet('__probe__');
+    await idbDelete('__probe__');
+    persistenceMode = (v === '1') ? 'indexeddb' : 'session';
+  }catch(e){
+    persistenceMode = 'session';
+  }
+}
+
+async function pGet(key){
+  if(STORAGE){ try{ const r = await STORAGE.get(key); return (r && r.value!==undefined) ? r.value : null; }catch(e){ return null; } }
+  if(HAS_LS){ try{ return window.localStorage.getItem(LS_PREFIX+key); }catch(e){ return null; } }
+  if(persistenceMode === 'indexeddb'){ try{ return await idbGet(key); }catch(e){ /* fall through */ } }
+  return memoryFallback[key] !== undefined ? memoryFallback[key] : null;
+}
+async function pSet(key, value){
+  if(STORAGE){ try{ await STORAGE.set(key, value); scheduleLinkedFileSync(); return; }catch(e){ console.error('storage error', e); } }
+  if(HAS_LS){ try{ window.localStorage.setItem(LS_PREFIX+key, value); scheduleLinkedFileSync(); return; }catch(e){ console.error('storage error', e); } }
+  if(persistenceMode === 'indexeddb'){ try{ await idbSet(key, value); scheduleLinkedFileSync(); return; }catch(e){ console.error('idb error', e); } }
+  memoryFallback[key] = value;
+  scheduleLinkedFileSync();
+}
+async function pDelete(key){
+  if(STORAGE){ try{ await STORAGE.delete(key); scheduleLinkedFileSync(); return; }catch(e){ console.error('storage error', e); } }
+  if(HAS_LS){ try{ window.localStorage.removeItem(LS_PREFIX+key); scheduleLinkedFileSync(); return; }catch(e){ console.error('storage error', e); } }
+  if(persistenceMode === 'indexeddb'){ try{ await idbDelete(key); scheduleLinkedFileSync(); return; }catch(e){ console.error('idb error', e); } }
+  delete memoryFallback[key];
+  scheduleLinkedFileSync();
+}
+
+// File System Access API: lets a browser (Chrome/Edge) hold a real, writable handle to a file
+// on disk, so changes can auto-save there continuously — not just to browser storage that's
+// tied to this exact file/origin. Firefox and Safari don't support this; they fall back to
+// manual Save/Load with a downloaded file instead.
+// The File System Access API requires a secure context (HTTPS or localhost) — it does NOT
+// work when a file is opened directly as file:// (double-clicking a downloaded HTML file),
+// which is how this tool is actually used. Checking isSecureContext up front avoids silently
+// attempting and failing the picker, and instead goes straight to the reliable manual
+// download/import path every time.
+const FS_ACCESS_SUPPORTED = (typeof window !== 'undefined') && window.isSecureContext
+  && 'showSaveFilePicker' in window && 'showOpenFilePicker' in window;
+let linkedFileHandle = null;
+let linkedFileName = '';
+let linkedSyncTimer = null;
+function scheduleLinkedFileSync(){
+  if(!linkedFileHandle) return;
+  clearTimeout(linkedSyncTimer);
+  linkedSyncTimer = setTimeout(()=>{ writeToLinkedFile().catch(e=>console.error('linked file auto-save failed', e)); }, 350);
+}
+
+function esc(str){
+  return (str==null?'':String(str)).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+let completed = {}; // {storageKey: true} for the current month
+
+// Reference-note overrides and guide links are NOT month-scoped — they're evergreen
+// "how to do this step" content that should roll forward for every month, current and future.
+let noteOverrides = {}; // {taskId: text}
+let referencesMap = {}; // {taskId: [{id, label, url}]}
+let openNotes = new Set();      // task ids whose "+ notes" panel is currently expanded
+let editingNotes = new Set();   // task ids currently in note-edit mode
+let noteDrafts = {};            // {taskId: draft text while editing}
+let openRefs = new Set();       // task ids whose "+ references" panel is currently expanded
+
+async function loadNoteOverrides(){
+  const raw = await pGet('close-tasknotes-v1');
+  try{ noteOverrides = raw ? JSON.parse(raw) : {}; }catch(e){ noteOverrides = {}; }
+}
+async function saveNoteOverride(taskId, text){
+  noteOverrides[taskId] = text;
+  await pSet('close-tasknotes-v1', JSON.stringify(noteOverrides));
+}
+function getNoteText(task){
+  return noteOverrides[task.id] !== undefined ? noteOverrides[task.id] : (task.notes || '');
+}
+
+// Editable name / assignment overrides — evergreen like notes, apply to every month,
+// and work uniformly for both built-in and custom tasks.
+let fieldOverrides = {}; // {taskId: {deliverable?, preparer?, reviewer?}}
+async function loadFieldOverrides(){
+  const raw = await pGet('close-taskfields-v1');
+  try{ fieldOverrides = raw ? JSON.parse(raw) : {}; }catch(e){ fieldOverrides = {}; }
+}
+async function saveFieldOverrides(){
+  await pSet('close-taskfields-v1', JSON.stringify(fieldOverrides));
+}
+function getField(task, key){
+  const o = fieldOverrides[task.id];
+  if(o && o[key] !== undefined && o[key] !== '') return o[key];
+  return task[key] || '';
+}
+function getOffset(task){
+  const o = fieldOverrides[task.id];
+  if(o && o.offset !== undefined && o.offset !== null && o.offset !== '') return o.offset;
+  return task.offset;
+}
+function getRaw(task){
+  const o = fieldOverrides[task.id];
+  if(o && o.raw !== undefined && o.raw !== '') return o.raw;
+  return task.raw;
+}
+async function setFields(taskId, patch){
+  fieldOverrides[taskId] = {...(fieldOverrides[taskId]||{}), ...patch};
+  await saveFieldOverrides();
+}
+let editingFieldTasks = new Set();
+let fieldDrafts = {}; // {taskId: {deliverable, preparer, reviewer, wd}}
+let fieldEditErrors = {}; // {taskId: error message}
+
+async function loadReferences(){
+  const raw = await pGet('close-references-v1');
+  try{ referencesMap = raw ? JSON.parse(raw) : {}; }catch(e){ referencesMap = {}; }
+}
+async function saveReferences(){
+  await pSet('close-references-v1', JSON.stringify(referencesMap));
+}
+async function addReference(taskId, label, url){
+  if(!taskId || !label.trim() || !url.trim()) return;
+  if(!referencesMap[taskId]) referencesMap[taskId] = [];
+  referencesMap[taskId].push({id:'r'+Date.now()+Math.random().toString(36).slice(2,6), label:label.trim(), url:url.trim()});
+  openRefs.add(taskId);
+  await saveReferences();
+  render();
+}
+async function deleteReference(taskId, refId){
+  referencesMap[taskId] = (referencesMap[taskId]||[]).filter(r=>r.id!==refId);
+  await saveReferences();
+  render();
+}
+function isHttpUrl(u){ return /^https?:\/\//i.test(u); }
+
+// User-added checklist items. Evergreen like notes/references — they roll forward to every
+// month once created, alongside the built-in tasks, rather than being a one-off for this month.
+let customTasks = []; // [{id, tab:'flex'|'div', phase, deliverable, preparer, reviewer, cadence, offset, raw, notes, custom:true}]
+async function loadCustomTasks(){
+  const raw = await pGet('close-custom-tasks-v1');
+  try{ customTasks = raw ? JSON.parse(raw) : []; }catch(e){ customTasks = []; }
+}
+async function saveCustomTasks(){
+  await pSet('close-custom-tasks-v1', JSON.stringify(customTasks));
+}
+async function addCustomTask(task){
+  customTasks.push(task);
+  await saveCustomTasks();
+  render();
+}
+async function deleteCustomTask(id){
+  customTasks = customTasks.filter(t=>t.id!==id);
+  await saveCustomTasks();
+  render();
+}
+function getTaskTab(task){
+  if(FLEX_TASKS.includes(task)) return 'flex';
+  if(DIV_TASKS.includes(task)) return 'div';
+  return task.tab || 'flex';
+}
+
+// Built-in tasks can be hidden (not permanently deleted, since they come from the
+// original close schedule) — hidden ones are restorable from the panel above the ruler.
+let hiddenTasks = new Set();
+let hiddenPanelOpen = false;
+async function loadHiddenTasks(){
+  const raw = await pGet('close-hidden-tasks-v1');
+  try{ hiddenTasks = new Set(raw ? JSON.parse(raw) : []); }catch(e){ hiddenTasks = new Set(); }
+}
+async function saveHiddenTasks(){
+  await pSet('close-hidden-tasks-v1', JSON.stringify([...hiddenTasks]));
+}
+async function hideTask(id){
+  hiddenTasks.add(id);
+  await saveHiddenTasks();
+  render();
+}
+async function restoreTask(id){
+  hiddenTasks.delete(id);
+  await saveHiddenTasks();
+  render();
+}
+
+// Tracks which months have ever had data saved, so a full backup export can find them all
+// (there's no generic "list all keys" call anymore — that's what caused the rate-limit bug).
+let monthsIndex = new Set();
+async function loadMonthsIndex(){
+  const raw = await pGet('close-months-index');
+  try{ monthsIndex = new Set(raw ? JSON.parse(raw) : []); }catch(e){ monthsIndex = new Set(); }
+}
+
+let notesList = []; // [{id, taskUid, text, ts}] for the current month
+const notesKey = ()=> 'close-notes:'+monthKey();
+
+const monthKey = ()=> curYear+'-'+String(curMonth+1).padStart(2,'0');
+const storeKey = (taskUid)=> 'close:'+monthKey()+':'+taskUid;
+
+async function loadNotesForMonth(){
+  const raw = await pGet(notesKey());
+  try{ notesList = raw ? JSON.parse(raw) : []; }
+  catch(e){ notesList = []; }
+}
+
+async function registerMonthInIndex(){
+  const mk = monthKey();
+  if(!monthsIndex.has(mk)){
+    monthsIndex.add(mk);
+    await pSet('close-months-index', JSON.stringify([...monthsIndex]));
+  }
+}
+
+async function saveNotesForMonth(){
+  await pSet(notesKey(), JSON.stringify(notesList));
+  await registerMonthInIndex();
+}
+
+function findTaskByUid(uid){
+  return FLEX_TASKS.find(t=>t.id===uid) || DIV_TASKS.find(t=>t.id===uid) || customTasks.find(t=>t.id===uid);
+}
+
+async function addNote(taskUid, text){
+  if(!taskUid || !text.trim()) return;
+  notesList.push({id:'n'+Date.now()+Math.random().toString(36).slice(2,6), taskUid, text:text.trim(), ts:Date.now()});
+  await saveNotesForMonth();
+  render();
+}
+
+async function deleteNote(noteId){
+  notesList = notesList.filter(n=>n.id!==noteId);
+  await saveNotesForMonth();
+  render();
+}
+
+function flashElement(el){
+  if(!el) return;
+  el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash');
+  setTimeout(()=> el.classList.remove('flash'), 2000);
+}
+
+function jumpToCard(taskUid){
+  const el = document.getElementById('card-'+taskUid);
+  if(el){ el.scrollIntoView({behavior:'smooth', block:'center'}); flashElement(el); }
+}
+
+function jumpToNotes(taskUid){
+  const panel = document.querySelector('.notes-panel');
+  if(panel) panel.scrollIntoView({behavior:'smooth', block:'start'});
+  document.querySelectorAll('.note-item[data-task="'+taskUid+'"]').forEach(el=> flashElement(el));
+}
+
+async function loadCompletedForMonth(){
+  completed = {};
+  // Stored as ONE combined entry per month (an array of completed task ids) rather than
+  // one storage call per task — the previous per-task approach fired ~30 calls on every
+  // month load/switch and could trip the host storage's rate limit.
+  const raw = await pGet('close-completed:'+monthKey());
+  let ids = [];
+  try{ ids = raw ? JSON.parse(raw) : []; }catch(e){ ids = []; }
+  ids.forEach(id=>{ completed[storeKey(id)] = true; });
+}
+
+async function saveCompletedForMonth(){
+  const prefix = 'close:'+monthKey()+':';
+  const ids = Object.keys(completed).filter(k=>k.startsWith(prefix)).map(k=>k.slice(prefix.length));
+  await pSet('close-completed:'+monthKey(), JSON.stringify(ids));
+  await registerMonthInIndex();
+}
+
+async function toggleComplete(taskUid){
+  const key = storeKey(taskUid);
+  const isDone = !!completed[key];
+  if(isDone) delete completed[key];
+  else completed[key] = true;
+  await saveCompletedForMonth();
+  render();
+}
+
+/* ---------------- Date resolution ---------------- */
+// Model, confirmed against the real close schedule:
+//   - WD-1 is the ONE fixed exception: the last business day of the PREVIOUS month.
+//   - Every other WD value is a business day WITHIN the currently viewed month.
+//     Positive offsets (WD+1, WD+2, ...) count forward from the 1st business day of this month.
+//     Negative offsets other than -1 (WD-2, WD-3, ...) count backward from this month's own month-end.
+function firstBizDayOfMonth(year, monthIdx){
+  let d = new Date(year, monthIdx, 1);
+  while(isWeekend(d)) d.setDate(d.getDate()+1);
+  return d;
+}
+function priorMonthAnchor(){
+  const m = curMonth===0?11:curMonth-1;
+  const y = curMonth===0?curYear-1:curYear;
+  return lastBizDayOfMonth(y,m);
+}
+function resolveOffsetDate(offsetVal){
+  if(offsetVal === -1) return priorMonthAnchor();
+  if(offsetVal > 0) return addBizDays(firstBizDayOfMonth(curYear, curMonth), offsetVal - 1);
+  return addBizDays(lastBizDayOfMonth(curYear, curMonth), offsetVal);
+}
+function resolveOne(task, offsetVal){
+  if(task.anchor === 'prior'){
+    // Explicitly prior-month-anchored (e.g. "Last WD of Prior Month") with its own offset from that anchor.
+    return {date: addBizDays(priorMonthAnchor(), offsetVal), priorAnchored: true};
+  }
+  return {date: resolveOffsetDate(offsetVal), priorAnchored: offsetVal === -1};
+}
+function resolvedDates(task){
+  // returns array of {date, note, priorAnchored}
+  if(task.special) return [];
+  if(task.deadlines){
+    return task.deadlines.map(d=>{
+      const r = resolveOne(task, d.offset);
+      return {date:r.date, note:d.note, priorAnchored:r.priorAnchored};
+    });
+  }
+  const qe = isQuarterEndMonth(curMonth);
+  const offsetVal = (task.offsetQE !== undefined && qe) ? task.offsetQE : getOffset(task);
+  const r = resolveOne(task, offsetVal);
+  return [{date:r.date, note:task.note||'', priorAnchored:r.priorAnchored}];
+}
+function appliesThisMonth(task){
+  if(task.cadence === 'quarterly' && !isQuarterEndMonth(curMonth) && !showQuarterlyAlways) return false;
+  return true;
+}
+
+/* ---------------- Rendering ---------------- */
+function setAccent(tab){
+  document.documentElement.style.setProperty('--accent', tab==='flex'?'#0B4F6C':'#B5651D');
+  document.documentElement.style.setProperty('--accent-soft', tab==='flex'?'#E4EEF1':'#F7ECDD');
+}
+
+function renderMonthBar(){
+  const label = new Date(curYear,curMonth,1).toLocaleDateString('en-US',{month:'long', year:'numeric'});
+  document.getElementById('monthLabel').textContent = label;
+  document.getElementById('qeBadge').style.display = isQuarterEndMonth(curMonth) ? 'inline-block' : 'none';
+}
+
+function renderTabs(){
+  document.getElementById('tabFlex').classList.toggle('active', activeTab==='flex');
+  document.getElementById('tabDiv').classList.toggle('active', activeTab==='div');
+}
+
+function getTaskSet(){
+  const base = activeTab==='flex' ? FLEX_TASKS : DIV_TASKS;
+  const custom = customTasks.filter(t=>t.tab===activeTab);
+  return [...base, ...custom].filter(t=> !hiddenTasks.has(t.id));
+}
+
+function renderBanner(){
+  const slot = document.getElementById('bannerSlot');
+  if(activeTab !== 'div'){ slot.innerHTML=''; return; }
+  const items = GENERAL_TIMELINE.map(g=>{
+    const d = resolveOffsetDate(g.offset);
+    return `<div class="item"><b>${g.label}</b><span class="mono">${fmtShort(d)} (WD+${g.offset}${g.note?', '+g.note:''})</span></div>`;
+  }).join('');
+  slot.innerHTML = `<div class="banner"><div class="item" style="width:100%; font-weight:600; color:var(--div-accent); margin-bottom:2px;">General Close Timeline</div>${items}</div>`;
+}
+
+function renderRuler(){
+  const ruler = document.getElementById('ruler');
+  const tasks = getTaskSet().filter(appliesThisMonth);
+  // Reference point for the ruler's x-axis: 1st business day of the viewed month, since that's
+  // where WD+1 now lands and most tasks cluster around it. WD-1 (a few calendar days back, since
+  // it's the prior month's last business day) still shows correctly close to the left of this.
+  const anchor = firstBizDayOfMonth(curYear,curMonth);
+  let minOffset = 0, maxOffset = 0;
+  const points = [];
+  tasks.forEach(t=>{
+    resolvedDates(t).forEach(rd=>{
+      const dayDiff = Math.round((rd.date - anchor)/(1000*60*60*24));
+      points.push({dayDiff, task:t});
+      if(dayDiff<minOffset) minOffset=dayDiff;
+      if(dayDiff>maxOffset) maxOffset=dayDiff;
+    });
+  });
+  minOffset = Math.min(minOffset,-5);
+  maxOffset = Math.max(maxOffset,20);
+  const totalSpan = maxOffset-minOffset;
+  const width = ruler.clientWidth || 760;
+  const px = (dayDiff)=> ((dayDiff-minOffset)/totalSpan) * (width-20) + 10;
+
+  let html = '<div class="ruler-line"></div>';
+  // tick every 5 calendar days
+  for(let d=minOffset; d<=maxOffset; d++){
+    if(d % 5 === 0){
+      html += `<div class="ruler-tick ${d===0?'zero':''}" style="left:${px(d)}px;"></div>`;
+      html += `<div class="ruler-ticklabel" style="left:${px(d)}px;">${d===0?'WD1':(d>0?'+'+d:d)}</div>`;
+    }
+  }
+  points.forEach(p=>{
+    const key = storeKey(p.task.id);
+    const done = !!completed[key];
+    html += `<div class="ruler-dot ${done?'done':''}" style="left:${px(p.dayDiff)}px;" title="${esc(getField(p.task,'deliverable'))} — ${fmtDate(p.task._firstDate||p.dayDiff)}" data-jump="${p.task.id}"></div>`;
+  });
+  ruler.innerHTML = html;
+  ruler.querySelectorAll('.ruler-dot').forEach(dot=>{
+    dot.addEventListener('click', ()=>{
+      const el = document.getElementById('card-'+dot.dataset.jump);
+      if(el) el.scrollIntoView({behavior:'smooth', block:'center'});
+    });
+  });
+  const noteEl = document.getElementById('rulerNote');
+  if(noteEl) noteEl.textContent = '';
+}
+
+function renderProgress(){
+  const tasks = getTaskSet().filter(appliesThisMonth);
+  const total = tasks.length;
+  const done = tasks.filter(t=> completed[storeKey(t.id)]).length;
+  const pct = total? Math.round(done/total*100):0;
+  document.getElementById('progFill').style.width = pct+'%';
+  document.getElementById('progTxt').textContent = `${done} / ${total} complete`;
+}
+
+function renderQToggle(){
+  const tasks = getTaskSet();
+  const hiddenCount = tasks.filter(t=> t.cadence==='quarterly' && !isQuarterEndMonth(curMonth)).length;
+  const el = document.getElementById('qToggle');
+  if(hiddenCount===0 || isQuarterEndMonth(curMonth)){ el.style.display='none'; return; }
+  el.style.display='block';
+  el.textContent = showQuarterlyAlways
+    ? `Hide ${hiddenCount} quarterly task${hiddenCount>1?'s':''} (not due this month)`
+    : `Show ${hiddenCount} quarterly task${hiddenCount>1?'s':''} anyway (not due this month)`;
+}
+
+function phaseOrder(){
+  return activeTab==='flex'
+    ? ['Pre-Close','Control','Close','Record','Payroll','Reconciliation','Reporting']
+    : ['Pre-Close','Close'];
+}
+
+function renderList(){
+  const container = document.getElementById('taskList');
+  const tasks = getTaskSet().filter(appliesThisMonth);
+  const byPhase = {};
+  tasks.forEach(t=>{
+    const dates = resolvedDates(t);
+    t._firstDate = dates.length ? dates[0].date : null;
+    (byPhase[t.phase] = byPhase[t.phase]||[]).push(t);
+  });
+  Object.values(byPhase).forEach(arr=> arr.sort((a,b)=>{
+    if(!a._firstDate) return 1;
+    if(!b._firstDate) return -1;
+    return a._firstDate - b._firstDate;
+  }));
+
+  let html = '';
+  phaseOrder().forEach(phase=>{
+    const arr = byPhase[phase];
+    if(!arr || !arr.length) return;
+    html += `<div class="phase-head">${phase} <span class="phase-count">(${arr.length})</span></div>`;
+    arr.forEach(t=>{
+      const key = storeKey(t.id);
+      const done = !!completed[key];
+      const dates = resolvedDates(t);
+      let dateChips = t.special
+        ? `<span class="datechip">${t.raw}</span>`
+        : dates.map(d=>`<span class="datechip">${fmtDate(d.date)}${d.note?' · '+d.note:''}</span>`).join(' ');
+      const taskNotes = notesList.filter(n=>n.taskUid===t.id);
+      const hasNote = taskNotes.length>0;
+      const pin = hasNote ? `<span class="pin-badge" data-jumpnotes="${t.id}">📝 ${taskNotes.length}</span>` : '';
+      const customTag = t.custom
+        ? `<span class="custom-tag">custom</span><button class="task-del-btn" data-deltask="${t.id}" title="Remove this checkbox">🗑</button>`
+        : `<button class="task-del-btn" data-hidetask="${t.id}" title="Hide this checkbox (restorable above)">🗑</button>`;
+
+      // Editable, evergreen "how to do this step" notes — rolls forward to every month.
+      const noteText = getNoteText(t);
+      const isEditingNote = editingNotes.has(t.id);
+      const notesOpen = isEditingNote || openNotes.has(t.id);
+      let notesBlock = '';
+      if(isEditingNote){
+        const draft = noteDrafts[t.id] !== undefined ? noteDrafts[t.id] : noteText;
+        notesBlock = `
+          <details class="notes" ${notesOpen?'open':''} data-noteid="${t.id}">
+            <summary></summary>
+            <div class="notebody">
+              <textarea class="note-edit-area" data-editarea="${t.id}">${esc(draft)}</textarea>
+              <div class="note-edit-actions">
+                <button class="note-save" data-savenote="${t.id}">Save</button>
+                <button class="note-cancel" data-cancelnote="${t.id}">Cancel</button>
+              </div>
+            </div>
+          </details>`;
+      } else {
+        notesBlock = `
+          <details class="notes" ${notesOpen?'open':''} data-noteid="${t.id}">
+            <summary></summary>
+            <div class="notebody">
+              <div class="notebody-text">${esc(noteText)}</div>
+              <button class="note-edit-btn" data-editnote="${t.id}">✎ Edit</button>
+            </div>
+          </details>`;
+      }
+
+      // Reference guides — file links / SharePoint paths, also evergreen across months.
+      const refs = referencesMap[t.id] || [];
+      const refsOpen = openRefs.has(t.id);
+      const refItems = refs.length
+        ? refs.map(r=>`
+            <div class="ref-item">
+              <span class="ref-label">${esc(r.label)}</span>
+              ${isHttpUrl(r.url)
+                ? `<a class="ref-link" href="${esc(r.url)}" target="_blank" rel="noopener">${esc(r.url)}</a>`
+                : `<span class="ref-path mono">${esc(r.url)}</span>`}
+              <button class="ref-del" data-delref="${t.id}|${r.id}" title="Remove reference">✕</button>
+            </div>`).join('')
+        : `<div class="ref-empty">No reference guides added yet.</div>`;
+      const refsBlock = `
+        <details class="refs" ${refsOpen?'open':''} data-refid="${t.id}">
+          <summary></summary>
+          <div class="refs-body">
+            ${refItems}
+            <div class="ref-add">
+              <div class="ref-add-row">
+                <input type="text" class="ref-input-label" data-refuidlabel="${t.id}" placeholder="Label (e.g. Perfect Pay SOP.docx)">
+                <button type="button" class="ref-browse-btn" data-refbrowse="${t.id}" title="Browse your computer for a file">📁 Browse…</button>
+                <input type="file" class="ref-file-input" data-reffileinput="${t.id}" style="display:none;">
+              </div>
+              <input type="text" class="ref-input-url" data-refuidurl="${t.id}" placeholder="Paste where it's saved (SharePoint link, network path)">
+              <button class="ref-add-btn" data-refadd="${t.id}">+ Add</button>
+            </div>
+          </div>
+        </details>`;
+
+      // Editable name / assignment / WD offset — evergreen, applies to every month.
+      const isEditingFields = editingFieldTasks.has(t.id);
+      const dName = getField(t,'deliverable');
+      const dPreparer = getField(t,'preparer');
+      const dReviewer = getField(t,'reviewer');
+      const canEditWD = !t.deadlines && !t.special;
+      const dRaw = getRaw(t);
+
+      let cardTopBlock, metaBlock;
+      if(isEditingFields){
+        const draft = fieldDrafts[t.id] || {deliverable:dName, preparer:dPreparer, reviewer:dReviewer, wd: canEditWD ? String(getOffset(t)) : undefined};
+        const wdField = canEditWD
+          ? `<div class="field-edit-row">
+               <input type="text" class="field-edit-input" data-fieldedit="${t.id}|wd" value="${esc(draft.wd)}" placeholder="WD number (e.g. -1, 0, +5, 10)">
+             </div>`
+          : '';
+        const errText = fieldEditErrors[t.id] ? `<div class="field-edit-error">${esc(fieldEditErrors[t.id])}</div>` : '';
+        cardTopBlock = `
+          <div class="card-top">
+            <div class="field-edit-block">
+              <input type="text" class="field-edit-input name-input" data-fieldedit="${t.id}|deliverable" value="${esc(draft.deliverable)}" placeholder="Task name">
+              <div class="field-edit-row">
+                <input type="text" class="field-edit-input" data-fieldedit="${t.id}|preparer" value="${esc(draft.preparer)}" placeholder="Assigned to (preparer)">
+                <input type="text" class="field-edit-input" data-fieldedit="${t.id}|reviewer" value="${esc(draft.reviewer)}" placeholder="Reviewer">
+              </div>
+              ${wdField}
+              ${errText}
+              <div class="field-edit-actions">
+                <button class="field-save-btn" data-savefields="${t.id}">Save</button>
+                <button class="field-cancel-btn" data-cancelfields="${t.id}">Cancel</button>
+              </div>
+            </div>
+            <div>${dateChips}</div>
+          </div>`;
+        metaBlock = '';
+      } else {
+        cardTopBlock = `
+          <div class="card-top">
+            <div class="card-title"><span class="${done?'strike':''}">${t.taskId?`<span class="taskid">${t.taskId}</span>`:''}${esc(dName)}</span> ${pin}${customTag}<button class="field-edit-btn" data-editfields="${t.id}" title="Edit name/assignment/WD">✎</button></div>
+            <div>${dateChips}</div>
+          </div>`;
+        metaBlock = `<div class="card-meta"><b>${esc(dPreparer)}</b> → <b>${esc(dReviewer)}</b> · ${t.cadence==='quarterly'?'Quarterly':'Monthly'}</div>`;
+      }
+
+      html += `
+        <div class="card ${done?'done':''} ${t.mine?'mine':''} ${hasNote?'has-note':''}" id="card-${t.id}">
+          <div class="chk ${done?'checked':''}" data-toggle="${t.id}">${done?'✓':''}</div>
+          <div class="card-body">
+            ${cardTopBlock}
+            ${metaBlock}
+            <div class="deadline-raw mono">${esc(dRaw)}${t.offsetQE!==undefined?' (adjusts on quarter-end months)':''}</div>
+            ${t.contact?`<div class="contact-line">Contacts: ${esc(t.contact)}</div>`:''}
+            ${notesBlock}
+            ${refsBlock}
+          </div>
+        </div>`;
+    });
+  });
+  container.innerHTML = html;
+
+  container.querySelectorAll('[data-toggle]').forEach(el=>{
+    el.addEventListener('click', ()=> toggleComplete(el.dataset.toggle));
+  });
+  container.querySelectorAll('[data-jumpnotes]').forEach(el=>{
+    el.addEventListener('click', ()=> jumpToNotes(el.dataset.jumpnotes));
+  });
+  container.querySelectorAll('[data-editfields]').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      const id = el.dataset.editfields;
+      const task = findTaskByUid(id);
+      const canEditWD = !task.deadlines && !task.special;
+      editingFieldTasks.add(id);
+      delete fieldEditErrors[id];
+      fieldDrafts[id] = {
+        deliverable:getField(task,'deliverable'),
+        preparer:getField(task,'preparer'),
+        reviewer:getField(task,'reviewer'),
+        wd: canEditWD ? String(getOffset(task)) : undefined
+      };
+      render();
+    });
+  });
+  container.querySelectorAll('[data-cancelfields]').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      editingFieldTasks.delete(el.dataset.cancelfields);
+      delete fieldDrafts[el.dataset.cancelfields];
+      delete fieldEditErrors[el.dataset.cancelfields];
+      render();
+    });
+  });
+  container.querySelectorAll('[data-fieldedit]').forEach(el=>{
+    el.addEventListener('input', ()=>{
+      const [id, key] = el.dataset.fieldedit.split('|');
+      if(!fieldDrafts[id]) fieldDrafts[id] = {};
+      fieldDrafts[id][key] = el.value;
+    });
+  });
+  container.querySelectorAll('[data-savefields]').forEach(el=>{
+    el.addEventListener('click', async ()=>{
+      const id = el.dataset.savefields;
+      const task = findTaskByUid(id);
+      const draft = fieldDrafts[id] || {};
+      const nameVal = (draft.deliverable||'').trim();
+      const patch = {
+        deliverable: nameVal || getField(task,'deliverable'),
+        preparer: (draft.preparer||'').trim(),
+        reviewer: (draft.reviewer||'').trim() || '—',
+      };
+      if(draft.wd !== undefined){
+        const wdRaw = String(draft.wd).trim();
+        const num = parseInt(wdRaw.replace(/^\+/,''), 10);
+        if(wdRaw === '' || isNaN(num)){
+          fieldEditErrors[id] = 'Please enter a valid WD number, e.g. -1, 0, 5.';
+          render();
+          return;
+        }
+        patch.offset = num;
+        patch.raw = 'WD'+(num>=0?'+':'')+num;
+      }
+      delete fieldEditErrors[id];
+      await setFields(id, patch);
+      editingFieldTasks.delete(id);
+      delete fieldDrafts[id];
+      render();
+    });
+  });
+
+  // Track expand/collapse state for notes so it survives re-renders triggered elsewhere.
+  container.querySelectorAll('details.notes').forEach(el=>{
+    const id = el.dataset.noteid;
+    el.addEventListener('toggle', ()=>{
+      if(el.open) openNotes.add(id);
+      else if(!editingNotes.has(id)) openNotes.delete(id);
+    });
+  });
+  container.querySelectorAll('details.refs').forEach(el=>{
+    const id = el.dataset.refid;
+    el.addEventListener('toggle', ()=>{
+      if(el.open) openRefs.add(id); else openRefs.delete(id);
+    });
+  });
+
+  container.querySelectorAll('[data-editnote]').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      editingNotes.add(el.dataset.editnote);
+      openNotes.add(el.dataset.editnote);
+      render();
+    });
+  });
+  container.querySelectorAll('[data-cancelnote]').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      editingNotes.delete(el.dataset.cancelnote);
+      delete noteDrafts[el.dataset.cancelnote];
+      render();
+    });
+  });
+  container.querySelectorAll('[data-savenote]').forEach(el=>{
+    el.addEventListener('click', async ()=>{
+      const id = el.dataset.savenote;
+      const ta = container.querySelector(`[data-editarea="${id}"]`);
+      const val = ta ? ta.value : '';
+      await saveNoteOverride(id, val);
+      editingNotes.delete(id);
+      delete noteDrafts[id];
+      openNotes.delete(id); // collapse after saving — reopen to confirm the change
+      render();
+    });
+  });
+  container.querySelectorAll('[data-editarea]').forEach(el=>{
+    el.addEventListener('input', ()=>{ noteDrafts[el.dataset.editarea] = el.value; });
+  });
+
+  container.querySelectorAll('[data-refadd]').forEach(el=>{
+    el.addEventListener('click', async ()=>{
+      const id = el.dataset.refadd;
+      const labelEl = container.querySelector(`[data-refuidlabel="${id}"]`);
+      const urlEl = container.querySelector(`[data-refuidurl="${id}"]`);
+      await addReference(id, labelEl.value, urlEl.value);
+    });
+  });
+  container.querySelectorAll('[data-refbrowse]').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      const id = el.dataset.refbrowse;
+      const fileInput = container.querySelector(`[data-reffileinput="${id}"]`);
+      if(fileInput) fileInput.click();
+    });
+  });
+  container.querySelectorAll('[data-reffileinput]').forEach(el=>{
+    el.addEventListener('change', ()=>{
+      const id = el.dataset.reffileinput;
+      const file = el.files && el.files[0];
+      if(!file) return;
+      const labelEl = container.querySelector(`[data-refuidlabel="${id}"]`);
+      const urlEl = container.querySelector(`[data-refuidurl="${id}"]`);
+      if(labelEl && !labelEl.value.trim()) labelEl.value = file.name;
+      if(urlEl) urlEl.focus();
+      el.value = ''; // reset so picking the same file again still fires change next time
+    });
+  });
+  container.querySelectorAll('[data-delref]').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      const [taskId, refId] = el.dataset.delref.split('|');
+      deleteReference(taskId, refId);
+    });
+  });
+  container.querySelectorAll('[data-deltask]').forEach(el=>{
+    el.addEventListener('click', ()=> deleteCustomTask(el.dataset.deltask));
+  });
+  container.querySelectorAll('[data-hidetask]').forEach(el=>{
+    el.addEventListener('click', ()=> hideTask(el.dataset.hidetask));
+  });
+}
+
+function renderHiddenBar(){
+  const base = activeTab==='flex' ? FLEX_TASKS : DIV_TASKS;
+  const hiddenForTab = base.filter(t=> hiddenTasks.has(t.id));
+  const toggle = document.getElementById('hiddenToggle');
+  const panel = document.getElementById('hiddenPanel');
+  if(!hiddenForTab.length){
+    toggle.textContent = '';
+    panel.style.display = 'none';
+    panel.innerHTML = '';
+    return;
+  }
+  toggle.textContent = `${hiddenForTab.length} item${hiddenForTab.length>1?'s':''} hidden — restore`;
+  if(hiddenPanelOpen){
+    panel.style.display = 'flex';
+    panel.innerHTML = hiddenForTab.map(t=>`
+      <div class="hidden-item">
+        <span class="hi-name">${t.taskId?'['+t.taskId+'] ':''}${esc(getField(t,'deliverable'))}</span>
+        <button class="hidden-restore-btn" data-restoretask="${t.id}">Restore</button>
+      </div>`).join('');
+    panel.querySelectorAll('[data-restoretask]').forEach(el=>{
+      el.addEventListener('click', ()=> restoreTask(el.dataset.restoretask));
+    });
+  } else {
+    panel.style.display = 'none';
+  }
+}
+
+function renderNotesPanel(){
+  // Build task select, grouped by tab, limited to tasks that apply this month
+  const select = document.getElementById('noteTaskSelect');
+  const prevValue = select.value;
+  const flexAll = [...FLEX_TASKS, ...customTasks.filter(t=>t.tab==='flex')].filter(t=> appliesThisMonth(t) && !hiddenTasks.has(t.id));
+  const divAll = [...DIV_TASKS, ...customTasks.filter(t=>t.tab==='div')].filter(t=> appliesThisMonth(t) && !hiddenTasks.has(t.id));
+  const flexOpts = flexAll.map(t=>
+    `<option value="${t.id}">${t.taskId?'['+t.taskId+'] ':''}${esc(getField(t,'deliverable'))}</option>`).join('');
+  const divOpts = divAll.map(t=>
+    `<option value="${t.id}">${esc(getField(t,'deliverable'))}</option>`).join('');
+  select.innerHTML = `<optgroup label="Flex Close">${flexOpts}</optgroup><optgroup label="Division Close">${divOpts}</optgroup>`;
+  if(prevValue && findTaskByUid(prevValue)) select.value = prevValue;
+
+  // Note list for this month
+  const listEl = document.getElementById('noteList');
+  document.getElementById('notesCount').textContent = notesList.length;
+  if(!notesList.length){
+    listEl.innerHTML = `<div class="note-empty">No notes yet this month. Pick an item above and add one.</div>`;
+    return;
+  }
+  const sorted = [...notesList].sort((a,b)=> b.ts-a.ts);
+  listEl.innerHTML = sorted.map(n=>{
+    const t = findTaskByUid(n.taskUid);
+    const label = t ? (t.taskId?'['+t.taskId+'] ':'')+getField(t,'deliverable') : '(item no longer available)';
+    const tabTag = t ? (getTaskTab(t)==='flex' ? 'Flex Close' : 'Division Close') : '';
+    return `
+      <div class="note-item" data-task="${n.taskUid}">
+        <div class="n-top">
+          <div class="n-task" data-jumpcard="${n.taskUid}">${esc(label)}</div>
+          <button class="n-del" data-delnote="${n.id}" title="Delete note">✕</button>
+        </div>
+        <div class="n-tab-tag">${tabTag}</div>
+        <div class="n-text">${esc(n.text)}</div>
+      </div>`;
+  }).join('');
+  listEl.querySelectorAll('[data-jumpcard]').forEach(el=>{
+    el.addEventListener('click', ()=> jumpToCard(el.dataset.jumpcard));
+  });
+  listEl.querySelectorAll('[data-delnote]').forEach(el=>{
+    el.addEventListener('click', ()=> deleteNote(el.dataset.delnote));
+  });
+}
+
+function render(){
+  setAccent(activeTab);
+  renderMonthBar();
+  renderTabs();
+  renderBanner();
+  renderQToggle();
+  renderProgress();
+  renderList();
+  renderRuler();
+  renderNotesPanel();
+  renderHiddenBar();
+}
+
+async function refreshAll(){
+  await loadCompletedForMonth();
+  await loadNotesForMonth();
+  render();
+}
+
+/* ---------------- Month/year jump picker ---------------- */
+let pickerYear = curYear;
+const MONTHS_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+function renderCalPopover(){
+  document.getElementById('calYearLabel').textContent = pickerYear;
+  const grid = document.getElementById('calMonthGrid');
+  grid.innerHTML = MONTHS_SHORT.map((m,i)=>{
+    const isSel = (pickerYear===curYear && i===curMonth);
+    const isQE = isQuarterEndMonth(i);
+    return `<button class="cal-month-btn ${isSel?'sel':''} ${isQE?'qe':''}" data-pickmonth="${i}" title="${isQE?'Quarter end':''}">${m}</button>`;
+  }).join('');
+  grid.querySelectorAll('[data-pickmonth]').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      curMonth = parseInt(btn.dataset.pickmonth,10);
+      curYear = pickerYear;
+      closeCalPicker();
+      await refreshAll();
+    });
+  });
+}
+function openCalPicker(){
+  pickerYear = curYear;
+  renderCalPopover();
+  document.getElementById('calPopover').style.display = 'block';
+}
+function closeCalPicker(){
+  document.getElementById('calPopover').style.display = 'none';
+}
+function toggleCalPicker(){
+  const pop = document.getElementById('calPopover');
+  if(pop.style.display === 'block') closeCalPicker(); else openCalPicker();
+}
+document.getElementById('calBtn').addEventListener('click', (e)=>{ e.stopPropagation(); toggleCalPicker(); });
+document.getElementById('monthLabel').addEventListener('click', (e)=>{ e.stopPropagation(); toggleCalPicker(); });
+document.getElementById('calYearPrev').addEventListener('click', (e)=>{ e.stopPropagation(); pickerYear--; renderCalPopover(); });
+document.getElementById('calYearNext').addEventListener('click', (e)=>{ e.stopPropagation(); pickerYear++; renderCalPopover(); });
+document.getElementById('calPopover').addEventListener('click', (e)=> e.stopPropagation());
+document.addEventListener('click', ()=> closeCalPicker());
+
+/* ---------------- Wire up ---------------- */
+document.getElementById('prevMonth').addEventListener('click', async ()=>{
+  curMonth--; if(curMonth<0){curMonth=11; curYear--;}
+  await refreshAll();
+});
+document.getElementById('nextMonth').addEventListener('click', async ()=>{
+  curMonth++; if(curMonth>11){curMonth=0; curYear++;}
+  await refreshAll();
+});
+document.getElementById('todayLink').addEventListener('click', async ()=>{
+  curYear = today.getFullYear(); curMonth = today.getMonth();
+  await refreshAll();
+});
+document.getElementById('tabFlex').addEventListener('click', ()=>{ activeTab='flex'; clearAddTaskForm(); render(); });
+document.getElementById('tabDiv').addEventListener('click', ()=>{ activeTab='div'; clearAddTaskForm(); render(); });
+document.getElementById('hiddenToggle').addEventListener('click', ()=>{ hiddenPanelOpen = !hiddenPanelOpen; renderHiddenBar(); });
+document.getElementById('saveChangesBtn').addEventListener('click', ()=>{ exportBackup(); });
+document.getElementById('loadChangesBtn').addEventListener('click', async ()=>{
+  if(FS_ACCESS_SUPPORTED){
+    try{
+      const [handle] = await window.showOpenFilePicker({
+        types: [{description:'JSON backup', accept:{'application/json':['.json']}}]
+      });
+      linkedFileHandle = handle;
+      linkedFileName = handle.name;
+      const file = await handle.getFile();
+      await importBackup(file);
+      updateLinkStatusUI();
+      return;
+    }catch(e){
+      if(e && e.name === 'AbortError') return; // user closed the picker — do nothing
+      console.error('showOpenFilePicker failed, falling back to plain file input', e);
+      // fall through to the plain <input type=file> fallback below
+    }
+  }
+  document.getElementById('loadChangesInput').click();
+});
+document.getElementById('loadChangesInput').addEventListener('change', async (e)=>{
+  const file = e.target.files[0];
+  if(file) await importBackup(file);
+  e.target.value = '';
+});
+document.getElementById('qToggle').addEventListener('click', ()=>{ showQuarterlyAlways = !showQuarterlyAlways; render(); });
+document.getElementById('noteAddBtn').addEventListener('click', async ()=>{
+  const select = document.getElementById('noteTaskSelect');
+  const textarea = document.getElementById('noteText');
+  await addNote(select.value, textarea.value);
+  textarea.value = '';
+});
+document.getElementById('noteText').addEventListener('keydown', (e)=>{
+  if(e.key==='Enter' && (e.metaKey || e.ctrlKey)){ document.getElementById('noteAddBtn').click(); }
+});
+
+function updatePersistHint(){
+  const persistHintEl = document.getElementById('persistHint');
+  if(!persistHintEl) return;
+  const baseHint = persistenceMode === 'session'
+    ? 'Checkboxes, notes, and reference guides save for this session only — this browser is blocking local storage for a local file, so they will reset when you close the file.'
+    : 'Everything also auto-saves in this browser, tied to this file, as a backup layer — but that resets if the file is moved, redownloaded, or opened in a different browser.';
+  const linkHint = FS_ACCESS_SUPPORTED
+    ? ' For real cross-session saving: click "Save Changes" once to link a file on your computer — every change writes there automatically after that. Click "Load Changes" and pick that file to resume next time you open this tool.'
+    : ' This tool is opened as a local file, so true auto-save-to-disk isn\'t available here — click "Save Changes" every time you want a backup, and "Load Changes" every time you reopen this file to bring your progress back.';
+  persistHintEl.textContent = baseHint + linkHint;
+}
+
+/* ---------------- New Checkbox form ---------------- */
+function populateAddTaskForm(){
+  const sel = document.getElementById('atPhase');
+  sel.innerHTML = phaseOrder().map(p=>`<option value="${esc(p)}">${esc(p)}</option>`).join('');
+  document.getElementById('atTabLabel').textContent = activeTab==='flex' ? 'Flex Close' : 'Division Close';
+}
+function clearAddTaskForm(){
+  document.getElementById('addTaskForm').style.display = 'none';
+  ['atName','atWD','atPreparer','atReviewer','atNotes','atRefLabel','atRefUrl'].forEach(id=>{
+    document.getElementById(id).value = '';
+  });
+  const err = document.getElementById('atError');
+  err.textContent = ''; err.classList.remove('show');
+}
+function showAtError(msg){
+  const err = document.getElementById('atError');
+  err.textContent = msg;
+  err.classList.add('show');
+}
+document.getElementById('addTaskBtn').addEventListener('click', ()=>{
+  const form = document.getElementById('addTaskForm');
+  const opening = form.style.display === 'none';
+  if(opening){ populateAddTaskForm(); form.style.display = 'flex'; }
+  else clearAddTaskForm();
+});
+document.getElementById('atCancel').addEventListener('click', clearAddTaskForm);
+document.getElementById('atSubmit').addEventListener('click', async ()=>{
+  const name = document.getElementById('atName').value.trim();
+  const wdRaw = document.getElementById('atWD').value.trim();
+  const preparer = document.getElementById('atPreparer').value.trim();
+  const reviewer = document.getElementById('atReviewer').value.trim() || '—';
+  const notes = document.getElementById('atNotes').value.trim();
+  const refLabel = document.getElementById('atRefLabel').value.trim();
+  const refUrl = document.getElementById('atRefUrl').value.trim();
+  const phase = document.getElementById('atPhase').value;
+
+  if(!name){ showAtError('Please enter a task name.'); return; }
+  const offsetNum = parseInt(wdRaw.replace(/^\+/,''), 10);
+  if(wdRaw === '' || isNaN(offsetNum)){ showAtError('Please enter a valid WD number, e.g. -1, 0, 5.'); return; }
+  if(!preparer){ showAtError('Please enter who this is assigned to.'); return; }
+
+  const id = 'custom-'+Date.now()+Math.random().toString(36).slice(2,6);
+  const raw = 'WD'+(offsetNum>=0?'+':'')+offsetNum;
+  const newTask = {
+    id, tab:activeTab, phase, deliverable:name, preparer, reviewer,
+    cadence:'monthly', offset:offsetNum, raw, notes, custom:true
+  };
+  await addCustomTask(newTask);
+  if(refLabel && refUrl){ await addReference(id, refLabel, refUrl); }
+  clearAddTaskForm();
+});
+
+/* ---------------- Save / Load backup file ---------------- */
+async function buildBackupPayload(){
+  const months = {};
+  for(const mk of monthsIndex){
+    const completedRaw = await pGet('close-completed:'+mk);
+    const notesRaw = await pGet('close-notes:'+mk);
+    months[mk] = {
+      completed: (()=>{ try{ return completedRaw?JSON.parse(completedRaw):[]; }catch(e){ return []; } })(),
+      notes: (()=>{ try{ return notesRaw?JSON.parse(notesRaw):[]; }catch(e){ return []; } })()
+    };
+  }
+  return {
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    noteOverrides, fieldOverrides, referencesMap, customTasks,
+    hiddenTasks: [...hiddenTasks],
+    months
+  };
+}
+
+async function writeToLinkedFile(){
+  if(!linkedFileHandle) return;
+  try{
+    const payload = await buildBackupPayload();
+    const writable = await linkedFileHandle.createWritable();
+    await writable.write(JSON.stringify(payload, null, 2));
+    await writable.close();
+    showSaveStatus(`Auto-saved to "${linkedFileName}" — ${new Date().toLocaleTimeString()}`);
+  }catch(e){
+    console.error('Auto-save to linked file failed', e);
+    showSaveStatus(`Auto-save to "${linkedFileName}" failed — click Save Changes to reconnect it.`, true);
+    linkedFileHandle = null;
+    updateLinkStatusUI();
+  }
+}
+
+function updateLinkStatusUI(){
+  const el = document.getElementById('linkStatus');
+  if(!el) return;
+  if(linkedFileHandle){
+    el.textContent = `🔗 Auto-saving to "${linkedFileName}"`;
+    el.style.color = 'var(--good)';
+  } else if(persistenceMode === 'checking'){
+    el.textContent = 'Checking what this browser supports…';
+    el.style.color = 'var(--ink-soft)';
+  } else if(persistenceMode === 'session'){
+    // Neither localStorage nor IndexedDB worked (rare) — commonly a private/incognito window.
+    // Nothing will survive closing the tool unless a backup file is saved manually.
+    el.textContent = '⚠ Auto-save OFF — this browser won\'t store data for a local file. Changes will be LOST on close unless you click Save Changes.';
+    el.style.color = '#B33';
+  } else if(persistenceMode === 'local'){
+    el.textContent = '✓ Auto-save ON — changes save in this browser automatically and should reappear when you reopen this file.';
+    el.style.color = 'var(--good)';
+  } else if(persistenceMode === 'indexeddb'){
+    el.textContent = '✓ Auto-save ON (via IndexedDB) — changes save in this browser automatically and should reappear when you reopen this file.';
+    el.style.color = 'var(--good)';
+  } else {
+    el.textContent = '✓ Auto-save ON (Claude.ai storage).';
+    el.style.color = 'var(--good)';
+  }
+}
+
+async function exportBackup(){
+  if(FS_ACCESS_SUPPORTED){
+    try{
+      const handle = await window.showSaveFilePicker({
+        suggestedName: 'close-calendar-save.json',
+        types: [{description:'JSON backup', accept:{'application/json':['.json']}}]
+      });
+      linkedFileHandle = handle;
+      linkedFileName = handle.name;
+      await writeToLinkedFile();
+      updateLinkStatusUI();
+      return;
+    }catch(e){
+      if(e && e.name === 'AbortError') return; // user closed the picker — do nothing
+      console.error('showSaveFilePicker failed, falling back to plain download', e);
+      // fall through to the plain-download fallback below
+    }
+  }
+  const payload = await buildBackupPayload();
+  const blob = new Blob([JSON.stringify(payload, null, 2)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const stamp = new Date().toISOString().slice(0,10);
+  a.href = url;
+  a.download = `close-calendar-backup-${stamp}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  showSaveStatus(`Downloaded a backup (${stamp}). This browser can't auto-save to a file — click Save Changes again for a fresh backup, and Load Changes to restore one.`);
+}
+
+async function applyBackupData(data){
+  noteOverrides = data.noteOverrides || {};
+  fieldOverrides = data.fieldOverrides || {};
+  referencesMap = data.referencesMap || {};
+  customTasks = data.customTasks || [];
+  hiddenTasks = new Set(data.hiddenTasks || []);
+  await pSet('close-tasknotes-v1', JSON.stringify(noteOverrides));
+  await pSet('close-taskfields-v1', JSON.stringify(fieldOverrides));
+  await pSet('close-references-v1', JSON.stringify(referencesMap));
+  await pSet('close-custom-tasks-v1', JSON.stringify(customTasks));
+  await pSet('close-hidden-tasks-v1', JSON.stringify([...hiddenTasks]));
+
+  const months = data.months || {};
+  monthsIndex = new Set(Object.keys(months));
+  for(const mk of monthsIndex){
+    await pSet('close-completed:'+mk, JSON.stringify(months[mk].completed || []));
+    await pSet('close-notes:'+mk, JSON.stringify(months[mk].notes || []));
+  }
+  await pSet('close-months-index', JSON.stringify([...monthsIndex]));
+
+  await refreshAll();
+  showSaveStatus(`Loaded backup from ${data.exportedAt ? new Date(data.exportedAt).toLocaleString() : 'file'}.`);
+}
+
+async function importBackup(file){
+  const text = await file.text();
+  let data;
+  try{ data = JSON.parse(text); }
+  catch(e){ showSaveStatus('That file could not be read — is it a backup exported from this tool?', true); return; }
+  await applyBackupData(data);
+}
+
+function showSaveStatus(msg, isError){
+  const el = document.getElementById('saveStatus');
+  if(!el) return;
+  el.textContent = msg;
+  el.style.color = isError ? '#B33' : 'var(--good)';
+  el.classList.add('show');
+  clearTimeout(showSaveStatus._t);
+  showSaveStatus._t = setTimeout(()=>{ el.classList.remove('show'); }, 6000);
+}
+
+async function init(){
+  await resolvePersistenceMode();
+  updatePersistHint();
+  await loadNoteOverrides();
+  await loadFieldOverrides();
+  await loadReferences();
+  await loadCustomTasks();
+  await loadHiddenTasks();
+  await loadMonthsIndex();
+  updateLinkStatusUI();
+  await refreshAll();
+}
+init();
+</script>
+</body>
+</html>
