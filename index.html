@@ -389,6 +389,59 @@ footer{margin-top:30px; text-align:center; font-size:0.72rem; color:var(--ink-so
 </style>
 </head>
 <body>
+<!-- =====================================================================
+     SHARED TEAM STORAGE (Firebase)
+     ---------------------------------------------------------------------
+     This connects the calendar to a free shared cloud database so every
+     teammate who opens this page sees the SAME checkboxes/notes/tasks.
+
+     SETUP (one-time, ~5 minutes):
+       1. Go to https://console.firebase.google.com -> Add project
+          (name it anything, e.g. "flex-close-calendar"). Google Analytics
+          can be turned off, it isn't needed.
+       2. In the project, go to Build -> Firestore Database -> Create
+          database -> Start in TEST MODE -> pick any region -> Enable.
+       3. Go to Project settings (gear icon) -> General -> "Your apps" ->
+          click the </> (Web) icon -> register app (any nickname, no
+          hosting needed) -> Firebase gives you a firebaseConfig object.
+       4. Copy that object's values into the six PASTE_ME fields below.
+       5. Commit + push this file to GitHub. Done — everyone who opens
+          the Pages link now reads/writes the same shared data.
+
+     NOTE ON SECURITY: Test mode leaves the database open to anyone with
+     the config values for 30 days, then locks it. For a small internal
+     team tool that's usually fine short-term, but before that window
+     closes, go to Firestore -> Rules and set:
+         allow read, write: if true;
+     (still open, but permanent) or add real auth if you want it locked
+     down further. Ask Claude if you want help tightening this later.
+     ===================================================================== -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-app.js";
+  import { getFirestore, doc, getDoc, setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyB6p9UJyODMLVWv-63odncYbWLzlYjkQ0k",
+    authDomain: "us-flex-calendar-close-backend.firebaseapp.com",
+    projectId: "us-flex-calendar-close-backend",
+    storageBucket: "us-flex-calendar-close-backend.firebasestorage.app",
+    messagingSenderId: "589147155572",
+    appId: "1:589147155572:web:9b6171d82b2863df4fb521"
+  };
+
+  window.__fbReady = (async () => {
+    const configured = firebaseConfig.apiKey && firebaseConfig.apiKey !== "PASTE_ME";
+    if (!configured) { window.__fb = null; return; }
+    try {
+      const app = initializeApp(firebaseConfig);
+      const db = getFirestore(app);
+      window.__fb = { db, doc, getDoc, setDoc, deleteDoc };
+    } catch (e) {
+      console.error('Firebase init failed, falling back to local storage', e);
+      window.__fb = null;
+    }
+  })();
+</script>
 <div class="page">
 <div class="main">
   <h1>US Flex Close Calendar</h1>
@@ -420,6 +473,7 @@ footer{margin-top:30px; text-align:center; font-size:0.72rem; color:var(--ink-so
   <div class="savebar">
     <button class="savebar-btn save" id="saveChangesBtn">💾 Save</button>
     <button class="savebar-btn load" id="loadChangesBtn">📂 Load</button>
+    <button class="savebar-btn" id="syncNowBtn" style="display:none;">🔄 Sync</button>
     <input type="file" id="loadChangesInput" accept="application/json" style="display:none;">
     <span class="link-status" id="linkStatus"></span>
     <span class="save-status" id="saveStatus"></span>
@@ -701,6 +755,8 @@ async function idbDelete(key){
 // Undetermined until probed in init() — IndexedDB availability can only be checked async.
 let persistenceMode = STORAGE ? 'host' : (HAS_LS ? 'local' : 'checking');
 async function resolvePersistenceMode(){
+  await ensureFirebase();
+  if(FB){ persistenceMode = 'cloud'; return; }
   if(persistenceMode !== 'checking') return;
   try{
     await idbSet('__probe__', '1');
@@ -712,13 +768,43 @@ async function resolvePersistenceMode(){
   }
 }
 
+// ---- Shared cloud storage (Firebase Firestore) ----
+// This is the "one whiteboard in a shared room" layer: when configured (see the
+// module script above), it takes priority over every other storage tier below,
+// so all teammates read and write the exact same data instead of separate
+// per-browser copies. Every key/value pair becomes one Firestore document,
+// living at collection "flexCalendarKV", document id = the storage key.
+const FB_COLLECTION = 'flexCalendarKV';
+let fbReadyChecked = false;
+let FB = null;
+async function ensureFirebase(){
+  if(fbReadyChecked) return;
+  try{ await window.__fbReady; FB = window.__fb || null; }
+  catch(e){ FB = null; }
+  fbReadyChecked = true;
+}
+async function fbGet(key){
+  const snap = await FB.getDoc(FB.doc(FB.db, FB_COLLECTION, key));
+  return snap.exists() ? (snap.data().value ?? null) : null;
+}
+async function fbSet(key, value){
+  await FB.setDoc(FB.doc(FB.db, FB_COLLECTION, key), { value, updatedAt: Date.now() });
+}
+async function fbDelete(key){
+  await FB.deleteDoc(FB.doc(FB.db, FB_COLLECTION, key));
+}
+
 async function pGet(key){
+  await ensureFirebase();
+  if(FB){ try{ return await fbGet(key); }catch(e){ console.error('firestore get error', e); } }
   if(STORAGE){ try{ const r = await STORAGE.get(key); return (r && r.value!==undefined) ? r.value : null; }catch(e){ return null; } }
   if(HAS_LS){ try{ return window.localStorage.getItem(LS_PREFIX+key); }catch(e){ return null; } }
   if(persistenceMode === 'indexeddb'){ try{ return await idbGet(key); }catch(e){ /* fall through */ } }
   return memoryFallback[key] !== undefined ? memoryFallback[key] : null;
 }
 async function pSet(key, value){
+  await ensureFirebase();
+  if(FB){ try{ await fbSet(key, value); scheduleLinkedFileSync(); return; }catch(e){ console.error('firestore set error', e); } }
   if(STORAGE){ try{ await STORAGE.set(key, value); scheduleLinkedFileSync(); return; }catch(e){ console.error('storage error', e); } }
   if(HAS_LS){ try{ window.localStorage.setItem(LS_PREFIX+key, value); scheduleLinkedFileSync(); return; }catch(e){ console.error('storage error', e); } }
   if(persistenceMode === 'indexeddb'){ try{ await idbSet(key, value); scheduleLinkedFileSync(); return; }catch(e){ console.error('idb error', e); } }
@@ -726,6 +812,8 @@ async function pSet(key, value){
   scheduleLinkedFileSync();
 }
 async function pDelete(key){
+  await ensureFirebase();
+  if(FB){ try{ await fbDelete(key); scheduleLinkedFileSync(); return; }catch(e){ console.error('firestore delete error', e); } }
   if(STORAGE){ try{ await STORAGE.delete(key); scheduleLinkedFileSync(); return; }catch(e){ console.error('storage error', e); } }
   if(HAS_LS){ try{ window.localStorage.removeItem(LS_PREFIX+key); scheduleLinkedFileSync(); return; }catch(e){ console.error('storage error', e); } }
   if(persistenceMode === 'indexeddb'){ try{ await idbDelete(key); scheduleLinkedFileSync(); return; }catch(e){ console.error('idb error', e); } }
@@ -1525,6 +1613,20 @@ async function refreshAll(){
   render();
 }
 
+// Full pull from shared cloud storage — reloads the "evergreen" data (notes,
+// field edits, references, custom tasks, hidden tasks) in addition to the
+// current month, so a teammate's changes anywhere show up here.
+async function syncFromCloud(){
+  await loadNoteOverrides();
+  await loadFieldOverrides();
+  await loadReferences();
+  await loadCustomTasks();
+  await loadHiddenTasks();
+  await loadMonthsIndex();
+  await refreshAll();
+  showSaveStatus('Synced with team data — ' + new Date().toLocaleTimeString());
+}
+
 /* ---------------- Month/year jump picker ---------------- */
 let pickerYear = curYear;
 const MONTHS_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
@@ -1582,6 +1684,7 @@ document.getElementById('tabFlex').addEventListener('click', ()=>{ activeTab='fl
 document.getElementById('tabDiv').addEventListener('click', ()=>{ activeTab='div'; clearAddTaskForm(); render(); });
 document.getElementById('hiddenToggle').addEventListener('click', ()=>{ hiddenPanelOpen = !hiddenPanelOpen; renderHiddenBar(); });
 document.getElementById('saveChangesBtn').addEventListener('click', ()=>{ exportBackup(); });
+document.getElementById('syncNowBtn').addEventListener('click', ()=>{ syncFromCloud(); });
 document.getElementById('loadChangesBtn').addEventListener('click', async ()=>{
   if(FS_ACCESS_SUPPORTED){
     try{
@@ -1621,6 +1724,10 @@ document.getElementById('noteText').addEventListener('keydown', (e)=>{
 function updatePersistHint(){
   const persistHintEl = document.getElementById('persistHint');
   if(!persistHintEl) return;
+  if(persistenceMode === 'cloud'){
+    persistHintEl.textContent = 'Checkboxes, notes, and tasks are stored in a shared team database — anyone with this link sees the same data. Use "🔄 Sync" to pull in a teammate\'s latest changes.';
+    return;
+  }
   const baseHint = persistenceMode === 'session'
     ? 'Checkboxes, notes, and reference guides save for this session only — this browser is blocking local storage for a local file, so they will reset when you close the file.'
     : 'Everything also auto-saves in this browser, tied to this file, as a backup layer — but that resets if the file is moved, redownloaded, or opened in a different browser.';
@@ -1721,7 +1828,10 @@ async function writeToLinkedFile(){
 function updateLinkStatusUI(){
   const el = document.getElementById('linkStatus');
   if(!el) return;
-  if(linkedFileHandle){
+  if(persistenceMode === 'cloud'){
+    el.textContent = '☁️ Shared with your team (Firebase) — everyone sees the same live data.';
+    el.style.color = 'var(--good)';
+  } else if(linkedFileHandle){
     el.textContent = `🔗 Auto-saving to "${linkedFileName}"`;
     el.style.color = 'var(--good)';
   } else if(persistenceMode === 'checking'){
@@ -1829,6 +1939,15 @@ async function init(){
   await loadMonthsIndex();
   updateLinkStatusUI();
   await refreshAll();
+
+  if(persistenceMode === 'cloud'){
+    document.getElementById('syncNowBtn').style.display = '';
+    // Light polling so a teammate's changes show up without a manual reload.
+    // (Simple and reliable; can be upgraded to Firestore's live onSnapshot
+    // listeners later for instant push updates if that's ever worth the added
+    // complexity — for a small team checking in periodically, this is enough.)
+    setInterval(()=>{ syncFromCloud(); }, 20000);
+  }
 }
 init();
 </script>
