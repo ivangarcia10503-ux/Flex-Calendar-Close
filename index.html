@@ -790,15 +790,31 @@ async function ensureFirebase(){
   catch(e){ FB = null; }
   fbReadyChecked = true;
 }
+let fbHealthy = true; // flips false when Firestore is unreachable (e.g. blocked by a firewall)
+function withTimeout(promise, ms=4000){
+  return Promise.race([
+    promise,
+    new Promise((_, reject)=> setTimeout(()=> reject(new Error('Firestore request timed out (network may be blocking it)')), ms))
+  ]);
+}
 async function fbGet(key){
-  const snap = await FB.getDoc(FB.doc(FB.db, FB_COLLECTION, key));
-  return snap.exists() ? (snap.data().value ?? null) : null;
+  try{
+    const snap = await withTimeout(FB.getDoc(FB.doc(FB.db, FB_COLLECTION, key)));
+    fbHealthy = true;
+    return snap.exists() ? (snap.data().value ?? null) : null;
+  }catch(e){ fbHealthy = false; throw e; }
 }
 async function fbSet(key, value){
-  await FB.setDoc(FB.doc(FB.db, FB_COLLECTION, key), { value, updatedAt: Date.now() });
+  try{
+    await withTimeout(FB.setDoc(FB.doc(FB.db, FB_COLLECTION, key), { value, updatedAt: Date.now() }));
+    fbHealthy = true;
+  }catch(e){ fbHealthy = false; throw e; }
 }
 async function fbDelete(key){
-  await FB.deleteDoc(FB.doc(FB.db, FB_COLLECTION, key));
+  try{
+    await withTimeout(FB.deleteDoc(FB.doc(FB.db, FB_COLLECTION, key)));
+    fbHealthy = true;
+  }catch(e){ fbHealthy = false; throw e; }
 }
 
 async function pGet(key){
@@ -1631,7 +1647,8 @@ async function syncFromCloud(){
   await loadHiddenTasks();
   await loadMonthsIndex();
   await refreshAll();
-  showSaveStatus('Synced with team data — ' + new Date().toLocaleTimeString());
+  updateLinkStatusUI();
+  showSaveStatus(fbHealthy ? ('Synced with team data — ' + new Date().toLocaleTimeString()) : 'Could not reach the shared database — showing local backup.', !fbHealthy);
 }
 
 /* ---------------- Month/year jump picker ---------------- */
@@ -1835,7 +1852,10 @@ async function writeToLinkedFile(){
 function updateLinkStatusUI(){
   const el = document.getElementById('linkStatus');
   if(!el) return;
-  if(persistenceMode === 'cloud'){
+  if(persistenceMode === 'cloud' && !fbHealthy){
+    el.textContent = '⚠ Firebase is configured but unreachable right now (network/firewall may be blocking it) — showing this browser\'s local backup until connection is restored.';
+    el.style.color = '#B33';
+  } else if(persistenceMode === 'cloud'){
     el.textContent = '☁️ Shared with your team (Firebase) — everyone sees the same live data.';
     el.style.color = 'var(--good)';
   } else if(linkedFileHandle){
@@ -1938,12 +1958,14 @@ function showSaveStatus(msg, isError){
 async function init(){
   await resolvePersistenceMode();
   updatePersistHint();
-  await loadNoteOverrides();
-  await loadFieldOverrides();
-  await loadReferences();
-  await loadCustomTasks();
-  await loadHiddenTasks();
-  await loadMonthsIndex();
+  await Promise.all([
+    loadNoteOverrides(),
+    loadFieldOverrides(),
+    loadReferences(),
+    loadCustomTasks(),
+    loadHiddenTasks(),
+    loadMonthsIndex()
+  ]);
   updateLinkStatusUI();
   await refreshAll();
 
