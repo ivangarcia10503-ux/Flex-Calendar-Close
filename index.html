@@ -779,6 +779,13 @@ let fbReadyChecked = false;
 let FB = null;
 async function ensureFirebase(){
   if(fbReadyChecked) return;
+  // The Firebase <script type="module"> tag is deferred by the browser, so it can still be
+  // loading when this runs. Wait (briefly) for it to set window.__fbReady before giving up.
+  let tries = 0;
+  while(!window.__fbReady && tries < 150){ // up to ~3s
+    await new Promise(r=>setTimeout(r, 20));
+    tries++;
+  }
   try{ await window.__fbReady; FB = window.__fb || null; }
   catch(e){ FB = null; }
   fbReadyChecked = true;
