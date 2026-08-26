@@ -1,0 +1,1066 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>EOT Process Ledger</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    /* Stryker brand palette (Color reference_2022 Nov) */
+    --paper: #FFFFFF;              /* White */
+    --paper-panel: #F6F6F5;        /* near-white panel tint */
+    --ink: #545857;                /* Dark gray 425C */
+    --ink-soft: #767979;           /* Dark gray 80% tint */
+    --rule: #BBBCBC;               /* Dark gray 40% tint */
+    --black: #000000;              /* Black */
+    --copper: #FFB500;             /* Gold 7549C — primary accent */
+    --copper-soft: #FFF3CC;        /* light gold tint */
+    --teal: #4C7D7A;               /* Teal 100% 7475C — branch/conditional accent */
+    --teal-soft: #DBE5E4;          /* Teal 20% tint */
+    --flag: #AF6D04;               /* Orange 100% 139C — flagged/attention accent */
+    --flag-soft: #EFE2CD;          /* Orange 20% tint */
+    --gold-gradient: linear-gradient(90deg, #FFB500 0%, #AF6D04 100%); /* 7549C → 139C, Primary gradient palette */
+    --purple-gradient: linear-gradient(90deg, #594B61 0%, #545857 100%); /* 7666C → 425C, Dark purple gradient */
+    --blue-gradient: linear-gradient(90deg, #425361 0%, #545857 100%); /* 7545C → 425C, Dark blue gradient */
+    --shadow: 0 1px 2px rgba(84,88,87,.08), 0 4px 14px rgba(84,88,87,.06);
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--paper);
+    color:var(--ink);
+    font-family:'Inter', sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:980px;margin:0 auto;padding:28px 22px 80px;}
+
+  /* Header */
+  header.top{
+    display:flex; justify-content:space-between; align-items:flex-end;
+    background:var(--gold-gradient);
+    border-radius:8px;
+    padding:22px 24px; margin-bottom:22px; gap:16px; flex-wrap:wrap;
+  }
+  .eyebrow{
+    font-family:'IBM Plex Mono', monospace; font-size:11px; letter-spacing:.14em;
+    text-transform:uppercase; color:rgba(0,0,0,.55); font-weight:700; margin-bottom:6px;
+  }
+  h1{
+    font-family:'Inter', sans-serif; font-weight:800; font-size:32px; margin:0; line-height:1.1;
+    letter-spacing:-.01em; color:#fff;
+  }
+  .glossary-btn{
+    font-family:'IBM Plex Mono', monospace; font-size:12px; letter-spacing:.05em;
+    background:var(--blue-gradient); color:#fff; border:none; border-radius:3px;
+    padding:10px 16px; cursor:pointer; white-space:nowrap; text-transform:uppercase;
+    transition:opacity .15s;
+  }
+  .glossary-btn:hover{opacity:.85;}
+  .header-btns{display:flex; gap:10px; flex-wrap:wrap;}
+  #exportBtn{background:var(--purple-gradient);}
+  #exportBtn:hover{opacity:.85;}
+
+  /* Category tabs */
+  .cat-row{display:flex; gap:8px; flex-wrap:wrap; margin-bottom:12px;}
+  .cat-btn{
+    font-family:'IBM Plex Mono', monospace; font-size:12px; letter-spacing:.03em;
+    background:transparent; border:1.5px solid var(--ink); color:var(--ink);
+    padding:9px 14px; border-radius:3px; cursor:pointer; transition:all .15s;
+  }
+  .cat-btn.active{background:var(--gold-gradient); color:#fff; border-color:transparent;}
+  .cat-btn:hover:not(.active){background:var(--copper-soft); border-color:var(--copper);}
+
+  /* Axis panel (decision-point selectors) */
+  .axis-panel{
+    display:flex; flex-wrap:wrap; gap:22px; margin-bottom:24px; padding:16px 18px;
+    background:var(--paper-panel); border:1px solid var(--rule); border-radius:8px;
+  }
+  .axis-group{display:flex; flex-direction:column; gap:6px;}
+  .axis-label{
+    font-family:'IBM Plex Mono', monospace; font-size:10.5px; text-transform:uppercase;
+    letter-spacing:.06em; color:var(--ink-soft);
+  }
+  .axis-toggle{display:flex; border:1.5px solid var(--ink); border-radius:5px; overflow:hidden;}
+  .axis-btn{
+    font-family:'Inter'; font-size:13px; font-weight:700; background:var(--paper-panel);
+    border:none; padding:7px 14px; cursor:pointer; color:var(--ink); transition:all .15s;
+    border-right:1.5px solid var(--ink);
+  }
+  .axis-btn:last-child{border-right:none;}
+  .axis-btn.active{background:var(--gold-gradient); color:#fff;}
+  .axis-btn:disabled{opacity:.35; cursor:not-allowed;}
+  .axis-btn:hover:not(.active):not(:disabled){background:var(--copper-soft);}
+  .axis-check{display:flex; align-items:center; gap:7px; font-size:13px; font-weight:600; cursor:pointer;}
+  .axis-check input{accent-color:var(--copper); width:15px; height:15px; cursor:pointer;}
+  .flow-path{
+    font-family:'IBM Plex Mono', monospace; font-size:11.5px; font-weight:600; color:var(--flag);
+    background:var(--flag-soft); padding:4px 10px; border-radius:12px; align-self:flex-start;
+    margin-top:2px;
+  }
+
+  /* Banner */
+  .banner{
+    background:var(--flag-soft); border-left:4px solid var(--flag);
+    padding:12px 16px; margin-bottom:22px; border-radius:0 4px 4px 0;
+    font-size:13.5px; line-height:1.5;
+  }
+  .banner b{font-family:'IBM Plex Mono'; font-size:11px; text-transform:uppercase; color:var(--flag); letter-spacing:.05em;}
+
+  /* Ledger */
+  .ledger{position:relative; padding-left:6px;}
+  .ledger::before{
+    content:""; position:absolute; left:29px; top:8px; bottom:8px; width:2px; background:var(--rule);
+  }
+  .step{position:relative; padding-left:64px; margin-bottom:6px;}
+  .step-num{
+    position:absolute; left:0; top:0; width:58px; height:58px;
+    display:flex; align-items:center; justify-content:center;
+    font-family:'IBM Plex Mono', monospace; font-weight:600; font-size:17px;
+    background:var(--paper-panel); border:2px solid var(--ink); border-radius:50%;
+    z-index:2; color:var(--ink);
+  }
+  .step-body{
+    background:var(--paper-panel); border:1px solid var(--rule); border-radius:6px;
+    padding:14px 16px 14px 18px; margin-bottom:16px; box-shadow:var(--shadow);
+    position:relative;
+  }
+  .step-text{white-space:pre-line; font-size:14px; line-height:1.65; margin:0;}
+  .edited-tag{
+    font-family:'IBM Plex Mono', monospace; font-size:10px; text-transform:uppercase;
+    color:var(--teal); background:var(--teal-soft); padding:1px 6px; border-radius:8px;
+    letter-spacing:.04em; vertical-align:middle;
+  }
+  .edit-toolbar{display:flex; gap:12px; margin-top:6px;}
+  .edit-link{
+    font-family:'IBM Plex Mono', monospace; font-size:10.5px; text-transform:uppercase;
+    letter-spacing:.03em; color:var(--ink-soft); background:none; border:none; padding:0;
+    cursor:pointer; text-decoration:underline; text-underline-offset:2px;
+  }
+  .edit-link:hover{color:var(--copper);}
+  .edit-textarea{
+    width:100%; min-height:80px; font-family:'Inter', sans-serif; font-size:14px;
+    line-height:1.6; color:var(--ink); border:1.5px solid var(--copper); border-radius:5px;
+    padding:8px 10px; resize:vertical; background:#fff;
+  }
+  .edit-btn-row{display:flex; gap:8px; margin-top:8px;}
+  .edit-save-btn, .edit-cancel-btn{
+    font-family:'Inter'; font-size:12.5px; font-weight:600; border-radius:4px; padding:6px 14px;
+    cursor:pointer; border:1.5px solid var(--ink);
+  }
+  .edit-save-btn{background:var(--gold-gradient); color:#fff; border-color:var(--copper);}
+  .edit-save-btn:disabled{opacity:.6; cursor:wait;}
+  .edit-cancel-btn{background:transparent; color:var(--ink);}
+  .loading-note{
+    font-family:'IBM Plex Mono', monospace; font-size:12.5px; color:var(--ink-soft);
+    padding:20px 0;
+  }
+  .step-text b.dash{color:var(--copper);}
+  .flag-badge{
+    position:absolute; top:-9px; right:-9px; background:var(--flag); color:#fff;
+    width:22px; height:22px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+    font-size:12px; font-weight:700; cursor:help; box-shadow:var(--shadow);
+    font-family:'IBM Plex Mono';
+  }
+  .flag-note{
+    display:none; margin-top:10px; background:var(--flag-soft); border-left:3px solid var(--flag);
+    padding:9px 12px; font-size:12.5px; line-height:1.5; border-radius:0 4px 4px 0;
+  }
+  .flag-note.show{display:block;}
+  .flag-note b{font-family:'IBM Plex Mono'; font-size:10px; text-transform:uppercase; color:var(--flag);}
+
+  .branches{margin-top:12px; display:flex; flex-direction:column; gap:10px;}
+  .branch{
+    border-left:3px solid var(--teal); background:var(--teal-soft);
+    border-radius:0 5px 5px 0; padding:9px 13px;
+  }
+  .branch-label{
+    font-family:'IBM Plex Mono', monospace; font-size:11px; font-weight:600;
+    color:var(--teal); text-transform:uppercase; letter-spacing:.03em; display:block; margin-bottom:4px;
+  }
+  .branch-text{white-space:pre-line; font-size:13.5px; line-height:1.6; margin:0;}
+
+  /* Glossary drawer */
+  .overlay{
+    position:fixed; inset:0; background:rgba(34,48,58,.4); display:none; z-index:50;
+  }
+  .overlay.show{display:block;}
+  .drawer{
+    position:fixed; top:0; right:0; height:100%; width:min(420px, 92vw);
+    background:var(--paper-panel); box-shadow:-8px 0 24px rgba(0,0,0,.15);
+    z-index:51; transform:translateX(100%); transition:transform .25s ease; display:flex; flex-direction:column;
+  }
+  .drawer.show{transform:translateX(0);}
+  .drawer-head{
+    padding:20px 20px 14px; border-bottom:2px solid var(--ink); display:flex; justify-content:space-between; align-items:center;
+  }
+  .drawer-head h2{font-family:'Inter', sans-serif; font-size:20px; margin:0; font-weight:800;}
+  .drawer-close{background:none; border:none; font-size:22px; cursor:pointer; color:var(--ink); line-height:1;}
+  .drawer-search{
+    margin:14px 20px; padding:9px 12px; border:1.5px solid var(--rule); border-radius:5px;
+    font-family:'Inter'; font-size:13.5px; background:#fff;
+  }
+  .drawer-list{overflow-y:auto; padding:0 20px 24px;}
+  .g-item{padding:12px 0; border-bottom:1px solid var(--rule);}
+  .g-term{
+    font-family:'IBM Plex Mono', monospace; font-weight:600; font-size:13px; color:var(--copper);
+    margin-bottom:4px; display:block;
+  }
+  .g-def{font-size:13px; line-height:1.55; margin:0 0 6px;}
+  .g-analogy{
+    font-size:12.5px; line-height:1.55; margin:0; color:var(--ink-soft); font-style:italic;
+    padding-left:10px; border-left:2px solid var(--copper-soft);
+  }
+
+  .export-instructions{font-size:13px; line-height:1.55; color:var(--ink-soft); margin:0 0 16px;}
+  .export-empty{
+    font-family:'IBM Plex Mono', monospace; font-size:12.5px; color:var(--ink-soft);
+    padding:20px 0; text-align:center;
+  }
+  .export-count{
+    font-family:'IBM Plex Mono', monospace; font-size:11px; text-transform:uppercase;
+    color:var(--teal); background:var(--teal-soft); padding:3px 9px; border-radius:10px;
+    display:inline-block; margin-bottom:12px;
+  }
+  .export-textarea{
+    width:100%; min-height:320px; font-family:'IBM Plex Mono', monospace; font-size:11.5px;
+    line-height:1.6; color:var(--ink); border:1.5px solid var(--rule); border-radius:5px;
+    padding:10px; resize:vertical; background:var(--paper-panel); white-space:pre;
+  }
+  .export-copy-btn{
+    font-family:'Inter'; font-size:13px; font-weight:600; border-radius:4px; padding:8px 16px;
+    cursor:pointer; border:1.5px solid var(--teal); background:var(--teal); color:#fff;
+    margin-top:10px; transition:background .15s;
+  }
+  .export-copy-btn:hover{background:#3a5f5c;}
+  .export-copy-btn.copied{background:var(--ink); border-color:var(--ink);}
+  .export-item-list{list-style:none; padding:0; margin:0 0 14px;}
+  .export-item-list li{
+    font-size:12.5px; padding:6px 0; border-bottom:1px solid var(--rule); color:var(--ink-soft);
+  }
+  .export-item-list b{color:var(--ink);}
+
+  footer.note{
+    margin-top:30px; font-size:12px; color:var(--ink-soft); border-top:1px solid var(--rule);
+    padding-top:14px; line-height:1.6;
+  }
+
+  @media (max-width:560px){
+    h1{font-size:24px;}
+    .step{padding-left:52px;}
+    .step-num{width:46px;height:46px;font-size:14px;}
+    .ledger::before{left:23px;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div>
+      <div class="eyebrow">Flex · LCT Finance</div>
+      <h1>EOT Process Ledger</h1>
+    </div>
+    <div class="header-btns">
+      <button class="glossary-btn" id="exportBtn" onclick="openExport()">Export My Edits ↗</button>
+      <button class="glossary-btn" onclick="openGlossary()">Acronym Glossary ↗</button>
+    </div>
+  </header>
+
+  <div class="cat-row" id="catRow"></div>
+  <div class="axis-panel" id="axisPanel"></div>
+  <div id="bannerArea"></div>
+  <div class="ledger" id="ledgerArea"></div>
+
+  <footer class="note">
+    Rebuilt as two branching flows (Buyout, Trade Up) instead of 10 separate lists — pick the path with the
+    buttons above and the flow re-renders around your choices. Steps common to every path stay worded
+    identically; only the true decision points (Keep/Return, old party, new party) change the wording, via
+    <b>{{lender / GA / BU}}</b>-style placeholders. Red flag icons mark steps the team already noted as pain
+    points in <b>00__EOT_Process_Mapping-Walkthrough.xlsx</b>; click one to see the note.
+  </footer>
+</div>
+
+<div class="overlay" id="overlay" onclick="closeGlossary()"></div>
+<div class="drawer" id="drawer">
+  <div class="drawer-head">
+    <h2>Acronym Glossary</h2>
+    <button class="drawer-close" onclick="closeGlossary()">×</button>
+  </div>
+  <input class="drawer-search" id="gSearch" placeholder="Search acronyms..." oninput="renderGlossary()">
+  <div class="drawer-list" id="gList"></div>
+</div>
+
+<div class="overlay" id="exportOverlay" onclick="closeExport()"></div>
+<div class="drawer" id="exportDrawer">
+  <div class="drawer-head">
+    <h2>Export My Edits</h2>
+    <button class="drawer-close" onclick="closeExport()">×</button>
+  </div>
+  <div class="drawer-list" id="exportBody">
+    <p class="export-instructions">
+      This is every edit you've saved across all paths, in a format you can paste straight back to Claude
+      to bake into the document as the new default text.
+    </p>
+    <div id="exportContent"></div>
+  </div>
+</div>
+
+<script>
+
+const GLOSSARY = [{"term": "EOT", "def": "End of Term \u2014 the team/process that handles what happens when a lease reaches its final months.", "analogy": "Think of a library book due date. EOT is the librarian's desk that handles what happens next: renew it, buy it, or return it."}, {"term": "BO", "def": "Buyout \u2014 the customer keeps the equipment by paying it off instead of returning it. The tool spells this out as \u201cBuyout\u201d rather than the abbreviation, but you'll still hear \u201cBO\u201d used verbally.", "analogy": "Like buying the bike you've been renting instead of giving it back."}, {"term": "TU / Trade Up (CTC)", "def": "Trade Up, also called CTC (Contract-to-Contract) \u2014 the customer trades old equipment for new equipment, rolling the old deal into a new one.", "analogy": "Trading in your old phone at the store when you get a new one \u2014 the old contract closes, a new one opens, and any money owed gets settled in between."}, {"term": "PMT / Jake, Sam, Ivan", "def": "PMT Specialist \u2014 the reconciliation role that handles the detailed funds-matching/keying side of a deal (as opposed to EOT, who runs the customer-facing quote process). In this tool, that role is shown as \u201cJake/Sam/Ivan\u201d since they're the people currently filling it. The \u201cEOT/PMT checklist,\u201d though, is a fixed tracker name and keeps its original label.", "analogy": "EOT is the front desk; PMT is the back-office accountant who makes sure every dollar lands in the right bucket."}, {"term": "GA", "def": "Great America / Servicer Zone \u2014 the third-party servicer that bills customers, tracks payments, and holds funds in suspense on many lease agreements.", "analogy": ""}, {"term": "Cash App", "def": "Edwin Cook's team \u2014 keys the actual funding, payoff, and shortfunding entries in Salesforce/SAP once EOT/Jake/Sam/Ivan have worked out the numbers."}, {"term": "AR", "def": "Accounts Receivable \u2014 what a customer owes on their account. \u201cSAP AR\u201d specifically means that balance as it sits in SAP."}, {"term": "RFM", "def": "Regional Finance Manager."}, {"term": "PA", "def": "Portfolio Administration team."}, {"term": "LCT", "def": "Lease & Contract Termination \u2014 Ivan's finance team; also referenced as the team that bills AR to fund a new agreement."}, {"term": "OE", "def": "Order Entry team \u2014 creates new sales orders, ships equipment, and moves an agreement's Salesforce status to \"pending CTC.\""}, {"term": "FMV", "def": "Fair Market Value \u2014 the buyout price based on what the equipment is currently worth (vs. a fixed $1 buyout)."}, {"term": "PPT", "def": "Personal Property Tax \u2014 a tax pass-through charge; estimated PPT rolls into the trade-up funding, billed PPT zeroes out once paid."}, {"term": "DCF", "def": "Detail Contract File \u2014 the reconciliation calculator/balance sheet used to true-up what's owed vs. paid on an agreement before it closes.", "analogy": "Like the final tally sheet when splitting a group dinner bill \u2014 it shows what's left to collect or refund before everyone walks away."}, {"term": "SAP AR", "def": "SAP Accounts Receivable \u2014 the open receivable balance sitting on the customer's account in SAP."}, {"term": "UAC", "def": "Unapplied Cash \u2014 payments sitting in SAP that haven't been matched to a specific invoice yet."}, {"term": "BU", "def": "Business Unit (e.g. Medical, Instruments, Endo) \u2014 the Stryker division that owns the equipment/customer relationship."}, {"term": "Project Prizm", "def": "The SAP AR subject-matter-expert team that reviews AR adjustments, write-offs, and revenue reversals at disposal."}, {"term": "SEKO", "def": "SEKO Worldwide \u2014 third-party logistics vendor customers can use to ship equipment back instead of returning it themselves."}, {"term": "RA", "def": "Return Authorization \u2014 instructions/paperwork confirming how and where to send returned equipment."}, {"term": "M4902", "def": "SAP charge code for Disposal / FMV \u2014 used the same way whether it's a lender FMV payoff or an internal disposal."}, {"term": "M4904", "def": "SAP charge code for missing or damaged equipment charged back to the customer after a return."}, {"term": "M4905", "def": "SAP charge code used specifically when a SEKO-managed return turns up missing/damaged equipment."}, {"term": "VA42 / VA43", "def": "SAP transaction codes to terminate/edit a contract's billing (e.g., setting the contract end date to today). Note: this file uses VA42; Ivan's other notes reference VA43 for terminating rentals/captives \u2014 worth confirming with Sam which code applies where."}, {"term": "Front of House", "def": "The sales/order team that creates the new order and ships equipment for a trade-up."}, {"term": "Suspense", "def": "A holding account where GA parks customer funds until someone matches them to the right invoice or task.", "analogy": "Like a lost-and-found bin at school \u2014 the money's not lost, it's just waiting for someone to claim and sort it."}, {"term": "Reverse Clawback", "def": "An entry that sends money back to a lender when Flex has collected more Perfect Pay than was actually owed."}, {"term": "Perfect Pay (GL 140002)", "def": "The holding GL for scheduled lease payment amounts (rent, remaining payments, renewals) \u2014 never a final destination, always a staging account."}, {"term": "140002 / Misc Exp", "def": "140002 = Perfect Pay staging GL. Misc Exp (GL 610810) = the account for pass-through/one-off charges Flex fronts (PPT, FMV/disposal, damage, SEKO)."}, {"term": "200030 / 230177", "def": "SAP GL/contract codes for internal (captive/rental) agreements. 200030 = Internal Rentals GL. 230177 = captive direct-coding GL (profit center 20012)."}, {"term": "DLL Caveat", "def": "DLL (a lender) won't release return instructions until the buyout is paid in full \u2014 unlike some lenders who'll release instructions once payment is just confirmed as sent."}, {"term": "Louis Irons", "def": "Risk Manager Director for Stryker \u2014 approves prepayment requests to lenders (e.g. prepaying a buyout from Misc Exp to stop renewal payments from accruing)."}, {"term": "Ty", "def": "Flex's contact at DLL \u2014 receives confirmation of a buyout payoff amount and forwards the request for return instructions internally at DLL."}, {"term": "Chris Corkery", "def": "DLL contact who provides EOT with return instructions once Ty has forwarded the request (part of the DLL Caveat workflow: DLL wants payment in full before releasing return instructions)."}, {"term": "Christina Pio", "def": "Included on return emails for Instruments (INST) returns on internal agreements."}, {"term": "Micah Berlage", "def": "Lead Financial Analyst on the Flex EOT team, reporting to Karl Hogg \u2014 a peer to Sam Flessner. Notified to process approved SAP write-offs."}];
+
+/* ============================================================
+   UNIFIED FLOW MODEL
+   Two processes (Buyout, TradeUp), each defined ONCE as an
+   ordered list of steps. Steps carry an appliesWhen() filter
+   (based on axis state) and a render() that returns the step
+   text using {{lender/GA/BU}}-style substitutions driven by
+   the axis state. This replaces the old 10-separate-lists
+   structure — the "source of truth" for a shared step now
+   lives in exactly one place.
+   ============================================================ */
+
+const FLOWS = {};
+
+/* ---------------- BUYOUT ---------------- */
+FLOWS.Buyout = {
+  label: "Buyout",
+  axes: [
+    {key:"disposition", label:"Keep or Return?", options:[{v:"Keep",l:"Keep"},{v:"Return",l:"Return"}]},
+    {key:"oldParty", label:"Original agreement is with", options:[{v:"Lender",l:"a Lender"},{v:"Internal",l:"Internal (rental/captive)"}]},
+  ],
+  extra(state){
+    // Dollar-out toggle only makes sense for Keep + Lender
+    return [{
+      key:"dollarOut", type:"checkbox", label:"$1 buyout (dollar-out) — no property tax/renewals",
+      enabled: state.disposition==="Keep" && state.oldParty==="Lender"
+    }];
+  },
+  pathLabel(state){
+    let s = `Buyout → ${state.disposition} (${state.oldParty})`;
+    if(state.dollarOut && state.disposition==="Keep" && state.oldParty==="Lender") s += " · $1 Out";
+    return s;
+  },
+  build(state){
+    const L = state.oldParty === "Lender";
+    const I = state.oldParty === "Internal";
+    const K = state.disposition === "Keep";
+    const R = state.disposition === "Return";
+    const D = !!(state.dollarOut && K && L); // dollar-out only applies on Keep+Lender
+    const steps = [];
+
+    // 1. Quote intake
+    steps.push({
+      id:"intake",
+      text: `- Sales/customer approaches EOT for a buyout quote\n- EOT creates a Buyout Quote Task` + (I ? ` and adds the agreement to the EOT/PMT checklist` : ``)
+    });
+
+    // 2. Reconciliation check
+    steps.push({
+      id:"recon-check",
+      text: `- EOT asks Jake/Sam/Ivan to reconcile Receipts vs. Obligation vs. SAP items (checking the "Initial Review Needed" column)` + (L ? ` — contingent on whether balancing activity is involved` : ``)
+    });
+
+    // 3. Get data
+    steps.push({
+      id:"get-data",
+      text: L ? `- EOT asks the lender for a buyout quote, and GA for buyout data` : `- EOT asks GA for buyout data`
+    });
+
+    // 4. Reconcile figures (Lender only)
+    if(L){
+      steps.push({id:"reconcile-figures", text:`- EOT reconciles the lender's buyout quote against GA's buyout data to land on the customer's buyout figures`});
+    }
+
+    // 5. Send quote
+    steps.push({
+      id:"send-quote",
+      text: `- EOT sends the buyout quote to the rep/RFM/customer` + (L ? `, ccing Lisa's team and GA` : ``) + `; EOT completes the Buyout Quote Task` + (R ? `\n- EOT receives written notice of intent to return` : ``)
+    });
+
+    // 6. Return-only: repurchase/return decision
+    if(R){
+      const step = {id:"return-decision", text:"", branches:[]};
+      if(L){
+        step.text = `IF notice of intent to return is received:\n- EOT reaches out to the BU to gauge interest in equipment repurchase\n     - IF yes: BU provides coding for equipment repurchase funds\n     - IF no: EOT forwards the notice to the lender; lender provides return instructions (see DLL Caveat)\n- EOT provides return instructions to sales, and records the return in Salesforce\n- Sales relays return instructions to the customer`;
+        step.branches.push({label:"DLL Caveat", text:"DLL wants the buyout paid in full before it will release return instructions"});
+      } else {
+        step.text = `IF notice of intent to return is received:\n- EOT notifies the BU of the return`;
+        step.branches.push({label:"By Division", text:"For ENDO returns: ENDO provides an RMA number. For INST returns: Christina Pio is included on the return emails."});
+      }
+      steps.push(step);
+    }
+
+    // 7. Customer pays
+    {
+      const step = {id:"pay", text:`- Customer pays the buyout invoice on time`, branches:[]};
+      if(!D){
+        step.branches.push({label:"Late Payment", text:`- Buyout invoice isn't paid within the window:\n- EOT refreshes the quote (back to the reconciliation step)\n- IF the customer pays the outdated invoice after the window closes, reconcile whether additional collections are needed and open a task with Billing`});
+      }
+      if(L && !D){
+        step.branches.push({label:"Prepayment Option", text:`PREPAYMENT OPTION:\n- EOT asks Jake/Sam/Ivan to prepay the buyout to the lender to stop renewal payments from accruing\n- GA assesses the charges to be prepaid\n- Louis Irons approves the prepayment from Misc Exp\n- Prepayment entry is created/submitted/logged`});
+      }
+      steps.push(step);
+    }
+
+    // 8. Return-only: customer completes return
+    if(R){
+      const step = {id:"complete-return", text:`- Customer completes the equipment return\n- EOT logs the return completion in the EOT/PMT checklist and Salesforce`, branches:[]};
+      if(L){
+        step.branches.push({label:"Return Not Timely", text:`If the return isn't completed on time, EOT updates and reissues the buyout invoice`});
+        step.branches.push({label:"Late + No Return", text:`If the customer doesn't complete the return on time AND pays the outdated invoice, Flex issues a buyout invoice for the remaining charges`});
+        step.branches.push({label:"Damaged/Missing Equipment", text:`If equipment comes back missing or damaged:\n     - Lender assesses charges to EOT\n     - EOT relays damages to sales/customer\n     - Sales/customer supplies serial number/tracking info for missing equipment\n     - Customer is charged for equipment not returned or damaged`});
+      }
+      steps.push(step);
+    }
+
+    // 9. GA places funds in suspense
+    steps.push({
+      id:"suspense",
+      text: `- GA places the buyout funds in suspense\n- Amanda creates a Buyout Funds in Suspense task` + (L ? ` and reassigns it to the EOT specialist` : ` and assigns it to EOT`) + (I ? `\n- EOT reassigns the task to Jake/Sam/Ivan (moving the agreement to the Jake/Sam/Ivan section of the EOT/PMT Checklist)` : ``)
+    });
+
+    // 10. Lender only: save invoice & reassign (+ DLL caveat on Return)
+    if(L){
+      const step = {id:"save-reassign", text:`- EOT saves the buyout invoice to the suspense-funds task and reassigns it to Jake/Sam/Ivan` + (R ? `\n- Jake/Sam/Ivan creates/updates the DCF reconciliation` : ``), branches:[]};
+      if(R){
+        step.branches.push({label:"DLL Caveat", text:`- Jake/Sam/Ivan submits the buyout payment to DLL, confirming the payoff amount to Ty\n- Ty forwards the request for return instructions to Chris Corkery\n- Chris Corkery provides EOT with return instructions`});
+      }
+      steps.push(step);
+    }
+
+    // 11. Return-only Lender: submits payment & confirms
+    if(R && L){
+      steps.push({id:"submit-payment", text:`- Jake/Sam/Ivan submits the buyout payment to the lender\n- EOT confirms satisfactory completion of the return and the final due date with the lender`});
+    }
+
+    // 12. Reconciliation & SAP AR review
+    {
+      const step = {id:"sap-ar-review", text:"", branches:[]};
+      if(L){
+        step.text = `- Jake/Sam/Ivan updates the reconciliation (simultaneous SAP AR reconciliation)\n- EOT adds the agreement to the EOT/PMT checklist`;
+        if(K){
+          step.branches.push({label:"Note", text:"For SAP AR reconciliation, send it to Project Prizm"});
+        }
+      } else {
+        step.text = `- Jake/Sam/Ivan updates the balance calculator reconciliation and passes it to MacKenzie's team for a SAP AR/UAC review\n- MacKenzie's team reviews the AR and reports back\n- Project Prizm requests any needed adjustments (additional AR from LCT, revenue reversal/write-off from BU sales ops or ProCare)` + (K ? ` and passes the agreement to LCT to open the buyout AR` : ``);
+      }
+      steps.push(step);
+    }
+
+    // 13. Keep+Internal only: open buyout AR
+    if(K && I){
+      steps.push({id:"open-ar", text:`- OE pulls serial numbers on the current deal and requests customer support open a buyout AR on the customer account — net of buyout funds and any open AR on the rental/captive account\n- Customer support confirms the AR is opened and provides the SAP customer account`});
+    }
+
+    // 14. Disposal instructions
+    {
+      const step = {id:"disposal", text:"", branches:[]};
+      if(L && R){
+        step.text = `- Jake/Sam/Ivan updates the reconciliation confirming all buyout funds are received, prepares disposal instructions, and sends them to Great America account servicing — forwarding the final due date to ProCare and marking the Buyout task/agreement completed in Salesforce`;
+      } else if(L && K){
+        step.text = `- Jake/Sam/Ivan prepares disposal instructions\n- Jake/Sam/Ivan sends application instructions to GA`;
+        if(!D){
+          step.branches.push({label:"Prepayment on Disposal", text:`- If the customer pays PPT, Jake/Sam/Ivan prepays the lender from GL 140002 (logging it in the outgoing payments log + reimbursement tracker)\n- Same process if the invoice includes FMV\n- If Flex owes Perfect Pay, Jake/Sam/Ivan submits a reverse clawback entry to the lender`});
+        }
+      } else if(I && K){
+        step.text = `- Jake/Sam/Ivan sends disposal instructions to GA, applies buyout funds to rent to clear the open AR on the rental/captive account, applies any remaining payments in excess of that AR to M4902 Disposal (same treatment as lender FMV), and moves the funds to the new buyout-AR customer account`;
+      } else if(I && R){
+        step.text = `- Jake/Sam/Ivan sends disposal instructions to GA\n- Jake/Sam/Ivan applies buyout funds to rent to clear the open AR on the rental/captive account`;
+      }
+      steps.push(step);
+    }
+
+    // 15. Close out / termination
+    {
+      const step = {id:"close", text:"", branches:[]};
+      if(L && K && D){
+        step.text = `- Submit a task to send the remaining Perfect Pays\n- Terminate the agreement in Salesforce`;
+      } else if(L && K){
+        step.text = `- Terminate the agreement in Salesforce`;
+        step.branches.push({label:"Terminate Perfect Pay", text:`- Submit a task to terminate Perfect Pay\n- Provide Flex's final due date to the ProCare team`});
+        step.branches.push({label:"DCF Write-off", text:`IF a DCF write-off is needed:\n- Karl Hogg approves write-offs up to $5k\n- Karl emails Rachel Krider for write-offs over $5k\n- Once approved, notify Micah Berlage to process the write-off`});
+        step.text += `\n- Move the agreement to the completed section of the EOT/Jake/Sam/Ivan checklist`;
+      } else if(L && R){
+        step.text = `Already completed above — this path closes out at the Disposal Instructions step.`;
+        // Skip rendering a duplicate closer for Lender+Return; remove it below.
+        step.skip = true;
+      } else {
+        step.text = `- Jake/Sam/Ivan closes out the agreement: terminates it in Salesforce, locates and terminates all active SAP contracts on GL 200030 or 230177, and communicates the final due date to ProCare for any agreement with ProCare service included`;
+      }
+      if(!step.skip) steps.push(step);
+    }
+
+    return steps;
+  }
+};
+
+/* ---------------- TRADE UP ---------------- */
+FLOWS.TradeUp = {
+  label: "Trade Up",
+  axes: [
+    {key:"disposition", label:"Keep or Return?", options:[{v:"Keep",l:"Keep"},{v:"Return",l:"Return"}]},
+    {key:"oldParty", label:"Original agreement is with", options:[{v:"Lender",l:"a Lender"},{v:"Internal",l:"Internal"}]},
+    {key:"newParty", label:"New agreement is with", options:[{v:"Lender",l:"a Lender"},{v:"Internal",l:"Internal"}]},
+  ],
+  extra(){ return []; },
+  pathLabel(state){
+    return `Trade Up → ${state.disposition} (${state.oldParty} → ${state.newParty})`;
+  },
+  build(state){
+    const oL = state.oldParty === "Lender", oI = state.oldParty === "Internal";
+    const nL = state.newParty === "Lender", nI = state.newParty === "Internal";
+    const K = state.disposition === "Keep", R = state.disposition === "Return";
+    const steps = [];
+
+    // 1. Quote request
+    {
+      let text = "";
+      if(R){
+        text += `- Sales receives the customer's 90-day notice of intent to return and forwards it to EOT\n- EOT forwards the intent to return to ${oL ? "the lender" : "the BU"}, reaches out to the BU to gauge interest in equipment repurchase, and offers the SEKO return option to the rep (getting a SEKO return quote if it's used)\n- Sales/customer approaches EOT for a quote\n`;
+      } else {
+        text += `- Sales/customer approaches EOT for a quote\n`;
+      }
+      text += `- EOT requests ${oL ? "a quote from the lender and buyout data from GA" : "buyout data from GA and verifies buyout amounts with BU Finance"}, reconciles the ${oL ? "lender" : "buyout"} quote, and asks Jake/Sam/Ivan to reconcile Receipts vs. Obligation vs. SAP items (Column K), contingent on balancing activity`;
+      const step = {id:"quote-request", text, branches:[]};
+      if(R && oL){
+        step.branches.push({label:"Repurchase / RA", text:`- EOT requests a repurchase invoice if the BU elects to repurchase\n- EOT confirms with the lender what's needed for the Return Authorization\n     - DLL Caveat: DLL wants full payment before releasing return instructions\n- EOT confirms the lender, sales, and customer are aligned on the return date`});
+      }
+      steps.push(step);
+    }
+
+    // 2. Create quote task
+    {
+      const step = {id:"quote-task", text:`- EOT creates the Trade-Up quote task (full or partial) on the original agreement\n- Sales receives the reconciled quote`, branches:[]};
+      if(R){
+        step.branches.push({label:"SEKO Cost", text:"If SEKO is used, include the SEKO cost in the reconciled quote"});
+      }
+      steps.push(step);
+    }
+
+    // 3. New order ships
+    {
+      const newLabel = nL ? "lender" : "internal";
+      const suffix = nL ? " on the lender customer account." : " on the internal funding account (rental or captive).";
+      steps.push({id:"new-order", text:`- Front of House creates the new order and ships equipment\n- LCT bills AR to fund the new ${newLabel} agreement${suffix}`});
+    }
+
+    // 4. New agreement ships complete
+    {
+      const step = {id:"ships-complete", text:`- New agreement ships complete`, branches:[]};
+      if(R){
+        if(oL){
+          step.branches.push({label:"Ready to Return", text:`- Sales rep/customer notifies EOT they're ready to return the original equipment\n- EOT reaches out to the lender for return instructions\n- Lender provides return instructions (internal use, not customer-facing)\n- EOT sends the customer-facing return instructions using the appropriate template`});
+        } else {
+          step.branches.push({label:"Ready to Return", text:`- Sales rep/customer notifies EOT they're ready to return the original equipment, and sends the customer-facing return instructions using the appropriate template`});
+        }
+      }
+      steps.push(step);
+    }
+
+    // 5. Pending CTC
+    steps.push({id:"pending-ctc", text:`- OE shifts the new agreement's Salesforce status to Pending CTC and assigns the task to an EOT specialist`});
+
+    // 6. Updated quote & reconciliation
+    steps.push({id:"updated-quote", text:`- EOT requests an updated quote from ${oL ? "the lender" : "GA"} and reconciles the ${R ? "current " : ""}quote against GA data`});
+
+    // 7. Verify trade-up amount
+    steps.push({id:"verify-amount", text:`- EOT verifies the trade-up amount against the original quote/FT saved in the new agreement's Salesforce files, saves the original and current trade-up quotes to the task, reassigns the Pending CTC task to a Jake/Sam/Ivan specialist, and adds the original agreement to the EOT/PMT checklist`});
+
+    // 8. Reconcile & compile CTC
+    {
+      const step = {id:"compile-ctc", text:`- Jake/Sam/Ivan specialists reconcile the original agreement with the ${oL ? "DCF calculator" : "internal balance calculator"}, compile the CTC (original quote, current quote, calculator attached), work out the trade-up/CTC details (shortfunding vs. additional funding), and list the keying details needed for Cash App to complete upon funding`, branches:[]};
+      if(R && oL){
+        step.branches.push({label:"DLL Caveat", text:"DLL provides return instructions"});
+      }
+      steps.push(step);
+    }
+
+    // 9. Post CTC & fund
+    {
+      let text = `- Jake/Sam/Ivan specialists post the CTC to chatter on the new agreement, ccing Edwin Cook for keying details if needed\n- LCT issues a PO to the ${nL ? "lender" : "BU"}\n- If shortfunding, Cash App or Jake/Sam/Ivan keys the shortfunding from Misc Exp or ${oL ? "GL 140002" : "internal (rental/captive)"} to the ${nL ? "lender" : "internal"} customer account (funding acct)`;
+      if(oL){
+        text += ` — Jake/Sam/Ivan keys the reverse clawback for any remaining payments/renewals being shortfunded, and Cash App keys the rest`;
+      }
+      const step = {id:"post-ctc", text, branches:[]};
+      if(oL){
+        step.branches.push({label:"Shortfunding by PPT", text: R ? "IF shortfunding by PPT and FMV (in case of a partial trade-up), log the shortfund in the reimbursement tracker" : "IF shortfunding by PPT, log the shortfund in the reimbursement tracker"});
+      }
+      steps.push(step);
+    }
+
+    // 10. Fund transfer (depends on old+new party combo)
+    {
+      let text;
+      if(oL && nL){
+        text = `- OE forwards the funding request to the new lender`;
+      } else if(oL && nI){
+        text = `- Cash App debits the new rental/captive account and credits the old lender on the original agreement to key the payoff funds`;
+      } else if(oI && nL){
+        text = `- Cash App keys additional funding to the rental/captive account to pay off the original internal agreement`;
+      } else { // oI && nI
+        text = `- Cash App keys additional funding to the rental/captive account to pay off the original internal agreement (debit referencing the new agreement, credit referencing the original agreement)`;
+      }
+      steps.push({id:"fund-transfer", text});
+    }
+
+    // 11. New agreement commences
+    {
+      let text = `- New agreement commences`;
+      const tail = [];
+      if(R){
+        tail.push("EOT confirms satisfactory completion of the equipment return");
+      } else {
+        tail.push("communicate to GA to stop invoicing new charges");
+        if(nI && oL) tail.push("EOT communicates the Perfect Pay termination");
+      }
+      if(oL) tail.push("EOT gets the final due date from the lender");
+      if(oI && R) tail.push("EOT provides the final due date to Jake/Sam/Ivan based on completion of the return");
+      if(tail.length) text += `; ` + tail.join("; ");
+
+      const step = {id:"commences", text, branches:[]};
+      if(oL){
+        step.branches.push({label:"Additional Collections", text:`IF additional collections are needed on the original agreement:\n      - Jake/Sam/Ivan forwards the outstanding amounts to EOT\n      - EOT compiles a buyout invoice and forwards it to sales, Great America, and Portfolio Administration\n      - An Additional Collections Needed task is created and reassigned to PA`});
+      } else {
+        step.branches.push({label:"Final Collections", text:`- Final customer collections are completed on the original agreement\n- Jake/Sam/Ivan outlines the outstanding amounts and requests (or verifies) any additional charges are opened by GA\n- EOT compiles the buyout invoice and forwards it to RFM/Portfolio Administration`});
+      }
+      if(R){
+        step.branches.push({label:"Equipment Condition", text:`- If the equipment return is incomplete (missing/damaged):\n    - EOT or Jake/Sam/Ivan requests GA assess M4904 charges for missing/damaged equipment\n    - EOT includes the M4904 charge on the buyout invoice\n    - If SEKO handled the return, the charge is assessed under M4905 instead`});
+      }
+      steps.push(step);
+    }
+
+    // 12. Convergence checkpoint
+    steps.push({id:"converge", text:`- New agreement commences AND any additional collections are completed` + (R ? ` AND the return is completed satisfactorily` : ``)});
+
+    // 13. Update calculator & disposal instructions
+    {
+      const step = {id:"update-calc", text:"", branches:[]};
+      if(oL){
+        step.text = `- Jake/Sam/Ivan updates the DCF calculator and compiles disposal instructions`;
+      } else {
+        step.text = `- Jake/Sam/Ivan updates the internal agreement calculator, forwards it to Project Prizm for AR review, compiles disposal instructions, and terminates SAP billings via T-code VA42 (setting the contract end date to today)`;
+        step.branches.push({label:"SAP Adjustment", text:"IF a SAP adjustment is needed, Project Prizm communicates it to BU Sales Ops"});
+      }
+      steps.push(step);
+    }
+
+    // 14. Close out
+    {
+      const step = {id:"close", text:`- Jake/Sam/Ivan closes out the trade-up: forwards disposal instructions to GA, communicates the final due date to ProCare (if needed), terminates the agreement in Salesforce, and moves it to the completed section of the EOT/Jake/Sam/Ivan checklist`, branches:[]};
+      if(oL){
+        step.branches.push({label:"Reimbursement Check", text:"Jake/Sam/Ivan confirms all open Misc Exp reimbursements are cleared at disposal"});
+      }
+      steps.push(step);
+    }
+
+    return steps;
+  }
+};
+
+/* ---------------- FLAGGED NOTES (from "Areas for improvement" tab) ---------------- */
+// Attached at the flow-path level rather than per-step, since the note-to-step mapping
+// in the original file didn't always cleanly align across the rebuilt unified steps.
+const FLAGGED_NOTES = {
+  "Buyout|Keep|Lender": [
+    "Consolidate the 'customer pays' and 'GA places funds in suspense' steps by saving each buyout invoice to the Salesforce task directly; Amanda immediately assigns buyout funds in suspense to Jake/Sam/Ivan.",
+    "Formalize the SAP AR review step to be done by Project Prizm."
+  ],
+  "Buyout|Keep|Internal": [
+    "Finance VP approvals are needed from all BUs to complete required adjustments for non-Prizm reserves.",
+    "Karl submitted a Flex initiative to improve manual OE pulling serial numbers.",
+    "The termination/SAP-contract step should likely sit with a different Flex team — Jake/Sam/Ivan doesn't work with SAP order and isn't the SME here.",
+    "Process-wide: needs buy-in from Project Prizm (the SAP AR SME) to learn Flex's buyout process and become a resource for EOT/PMT disposals."
+  ],
+  "Buyout|Return|Internal": [
+    "Quotes get refreshed every 30 days if the return isn't completed timely.",
+    "BUs are taking a stronger stance on not charging customers for missing equipment."
+  ],
+  "Buyout|Return|Lender": [
+    "If the agreement has ProCare, bring ProCare in to assess the equipment before the return."
+  ],
+  "TradeUp|Return": [
+    "Open question flagged by the team: when exactly does EOT create the Equipment Return task in a trade-up-to-return flow?"
+  ]
+};
+function getFlaggedNotes(flowKey, state){
+  const exact = FLAGGED_NOTES[`${flowKey}|${state.disposition}|${state.oldParty}`] || [];
+  const dispositionOnly = FLAGGED_NOTES[`${flowKey}|${state.disposition}`] || [];
+  return [...exact, ...dispositionOnly];
+}
+
+/* ============================================================
+   STATE + RENDERING
+   ============================================================ */
+let currentFlowKey = "Buyout";
+let axisState = { disposition:"Keep", oldParty:"Lender", newParty:"Lender", dollarOut:false };
+
+function escapeHtml(str){
+  return String(str).replace(/[&<>]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[m]));
+}
+
+function renderCats(){
+  const row = document.getElementById('catRow');
+  row.innerHTML = "";
+  Object.keys(FLOWS).forEach(key=>{
+    const b = document.createElement('button');
+    b.className = 'cat-btn' + (key===currentFlowKey ? ' active' : '');
+    b.textContent = FLOWS[key].label;
+    b.onclick = ()=>{ currentFlowKey = key; renderCats(); renderAxisPanel(); renderLedger(); };
+    row.appendChild(b);
+  });
+}
+
+function renderAxisPanel(){
+  const flow = FLOWS[currentFlowKey];
+  const panel = document.getElementById('axisPanel');
+  panel.innerHTML = "";
+
+  flow.axes.forEach(axis=>{
+    const group = document.createElement('div');
+    group.className = 'axis-group';
+    const lbl = document.createElement('div');
+    lbl.className = 'axis-label';
+    lbl.textContent = axis.label;
+    group.appendChild(lbl);
+    const toggle = document.createElement('div');
+    toggle.className = 'axis-toggle';
+    axis.options.forEach(opt=>{
+      const b = document.createElement('button');
+      b.className = 'axis-btn' + (axisState[axis.key]===opt.v ? ' active' : '');
+      b.textContent = opt.l;
+      b.onclick = ()=>{ axisState[axis.key] = opt.v; renderAxisPanel(); renderLedger(); };
+      toggle.appendChild(b);
+    });
+    group.appendChild(toggle);
+    panel.appendChild(group);
+  });
+
+  const extras = flow.extra(axisState);
+  extras.forEach(ex=>{
+    if(ex.type === "checkbox"){
+      const group = document.createElement('div');
+      group.className = 'axis-group';
+      const lbl = document.createElement('div');
+      lbl.className = 'axis-label';
+      lbl.textContent = "Special case";
+      group.appendChild(lbl);
+      const check = document.createElement('label');
+      check.className = 'axis-check';
+      const input = document.createElement('input');
+      input.type = 'checkbox';
+      input.checked = !!axisState[ex.key] && ex.enabled;
+      input.disabled = !ex.enabled;
+      input.onchange = ()=>{ axisState[ex.key] = input.checked; renderLedger(); };
+      check.appendChild(input);
+      const span = document.createElement('span');
+      span.textContent = ex.label;
+      check.appendChild(span);
+      group.appendChild(check);
+      panel.appendChild(group);
+    }
+  });
+
+  const pathBadge = document.createElement('div');
+  pathBadge.className = 'flow-path';
+  pathBadge.textContent = flow.pathLabel(axisState);
+  panel.appendChild(pathBadge);
+}
+
+function renderBanner(){
+  const area = document.getElementById('bannerArea');
+  area.innerHTML = "";
+  const notes = getFlaggedNotes(currentFlowKey, axisState);
+  if(notes.length){
+    const div = document.createElement('div');
+    div.className = 'banner';
+    div.innerHTML = '<b>Flagged by the team on this path</b><br>' + notes.map(n=>escapeHtml(n)).join('<br><br>');
+    area.appendChild(div);
+  }
+}
+
+let overrides = {};
+let overridesLoaded = false;
+
+function stateSig(){
+  const flow = FLOWS[currentFlowKey];
+  let parts = flow.axes.map(a=>`${a.key}=${axisState[a.key]}`);
+  if(currentFlowKey === "Buyout") parts.push(`dollarOut=${!!axisState.dollarOut}`);
+  return parts.join("|");
+}
+
+function overrideKey(stepId, branchIdx){
+  const part = (branchIdx===null || branchIdx===undefined) ? "main" : ("b" + branchIdx);
+  return `ovr:${currentFlowKey}:${stepId}:${part}:${stateSig()}`;
+}
+
+async function loadOverrides(){
+  try{
+    const result = await window.storage.list("ovr:", false);
+    if(result && result.keys){
+      for(const k of result.keys){
+        try{
+          const r = await window.storage.get(k, false);
+          if(r) overrides[k] = r.value;
+        }catch(e){ /* key may have been removed concurrently; skip */ }
+      }
+    }
+  }catch(e){
+    console.error("Couldn't load saved edits:", e);
+  }
+  overridesLoaded = true;
+}
+
+async function saveOverride(key, text){
+  try{
+    const result = await window.storage.set(key, text, false);
+    if(!result){ console.error("Save failed for", key); return false; }
+    overrides[key] = text;
+    return true;
+  }catch(e){
+    console.error("Save error:", e);
+    return false;
+  }
+}
+
+async function resetOverride(key){
+  try{
+    await window.storage.delete(key, false);
+  }catch(e){ /* already gone */ }
+  delete overrides[key];
+}
+
+function makeEditableBlock(container, textClass, originalText, key){
+  const isEdited = Object.prototype.hasOwnProperty.call(overrides, key);
+  const displayText = isEdited ? overrides[key] : originalText;
+
+  const p = document.createElement('p');
+  p.className = textClass;
+  p.innerHTML = escapeHtml(displayText) + (isEdited ? ' <span class="edited-tag">edited</span>' : '');
+  container.appendChild(p);
+
+  const toolbar = document.createElement('div');
+  toolbar.className = 'edit-toolbar';
+  const editLink = document.createElement('button');
+  editLink.className = 'edit-link';
+  editLink.textContent = 'Edit';
+  toolbar.appendChild(editLink);
+  let resetLink = null;
+  if(isEdited){
+    resetLink = document.createElement('button');
+    resetLink.className = 'edit-link';
+    resetLink.textContent = 'Reset to original';
+    toolbar.appendChild(resetLink);
+  }
+  container.appendChild(toolbar);
+
+  editLink.onclick = ()=>{
+    const textarea = document.createElement('textarea');
+    textarea.className = 'edit-textarea';
+    textarea.value = displayText;
+    const saveBtn = document.createElement('button');
+    saveBtn.className = 'edit-save-btn';
+    saveBtn.textContent = 'Save';
+    const cancelBtn = document.createElement('button');
+    cancelBtn.className = 'edit-cancel-btn';
+    cancelBtn.textContent = 'Cancel';
+    const btnRow = document.createElement('div');
+    btnRow.className = 'edit-btn-row';
+    btnRow.appendChild(saveBtn);
+    btnRow.appendChild(cancelBtn);
+
+    p.replaceWith(textarea);
+    toolbar.replaceWith(btnRow);
+    textarea.focus();
+
+    saveBtn.onclick = async ()=>{
+      saveBtn.disabled = true; saveBtn.textContent = 'Saving...';
+      const ok = await saveOverride(key, textarea.value);
+      if(ok){ renderLedger(); } else { saveBtn.disabled = false; saveBtn.textContent = 'Save'; }
+    };
+    cancelBtn.onclick = ()=>{ renderLedger(); };
+  };
+
+  if(resetLink){
+    resetLink.onclick = async ()=>{
+      await resetOverride(key);
+      renderLedger();
+    };
+  }
+}
+
+function renderLedger(){
+  if(!overridesLoaded){
+    const area = document.getElementById('ledgerArea');
+    area.innerHTML = '<div class="loading-note">Loading your saved edits...</div>';
+    loadOverrides().then(renderLedger);
+    return;
+  }
+
+  renderBanner();
+  const flow = FLOWS[currentFlowKey];
+  const steps = flow.build(axisState);
+  const area = document.getElementById('ledgerArea');
+  area.innerHTML = "";
+
+  steps.forEach((step, idx)=>{
+    const stepDiv = document.createElement('div');
+    stepDiv.className = 'step';
+
+    const numDiv = document.createElement('div');
+    numDiv.className = 'step-num';
+    numDiv.textContent = idx + 1;
+    stepDiv.appendChild(numDiv);
+
+    const body = document.createElement('div');
+    body.className = 'step-body';
+
+    makeEditableBlock(body, 'step-text', step.text, overrideKey(step.id, null));
+
+    if(step.branches && step.branches.length){
+      const bWrap = document.createElement('div');
+      bWrap.className = 'branches';
+      step.branches.forEach((b, bIdx)=>{
+        const bd = document.createElement('div');
+        bd.className = 'branch';
+        const lblEl = document.createElement('span');
+        lblEl.className = 'branch-label';
+        lblEl.textContent = b.label;
+        bd.appendChild(lblEl);
+        makeEditableBlock(bd, 'branch-text', b.text, overrideKey(step.id, bIdx));
+        bWrap.appendChild(bd);
+      });
+      body.appendChild(bWrap);
+    }
+
+    stepDiv.appendChild(body);
+    area.appendChild(stepDiv);
+  });
+}
+
+
+function renderGlossary(){
+  const q = document.getElementById('gSearch').value.toLowerCase();
+  const list = document.getElementById('gList');
+  list.innerHTML = "";
+  GLOSSARY.filter(g=>{
+    return !q || g.term.toLowerCase().includes(q) || g.def.toLowerCase().includes(q);
+  }).forEach(g=>{
+    const item = document.createElement('div');
+    item.className = 'g-item';
+    let html = '<span class="g-term">' + escapeHtml(g.term) + '</span><p class="g-def">' + escapeHtml(g.def) + '</p>';
+    if(g.analogy){
+      html += '<p class="g-analogy">' + escapeHtml(g.analogy) + '</p>';
+    }
+    item.innerHTML = html;
+    list.appendChild(item);
+  });
+}
+
+function openGlossary(){
+  document.getElementById('overlay').classList.add('show');
+  document.getElementById('drawer').classList.add('show');
+  renderGlossary();
+}
+function closeGlossary(){
+  document.getElementById('overlay').classList.remove('show');
+  document.getElementById('drawer').classList.remove('show');
+}
+
+function parseOverrideKey(key){
+  // format: ovr:{flow}:{stepId}:{part}:{pathString}
+  const rest = key.slice(4); // strip "ovr:"
+  const c1 = rest.indexOf(':');
+  const flow = rest.slice(0, c1);
+  const rest2 = rest.slice(c1 + 1);
+  const c2 = rest2.indexOf(':');
+  const stepId = rest2.slice(0, c2);
+  const rest3 = rest2.slice(c2 + 1);
+  const c3 = rest3.indexOf(':');
+  const part = rest3.slice(0, c3);
+  const path = rest3.slice(c3 + 1);
+  return {flow, stepId, part, path};
+}
+
+async function buildExportData(){
+  const items = [];
+  try{
+    const result = await window.storage.list("ovr:", false);
+    if(result && result.keys){
+      for(const k of result.keys){
+        try{
+          const r = await window.storage.get(k, false);
+          if(r){
+            items.push({...parseOverrideKey(k), text: r.value});
+          }
+        }catch(e){ /* skip missing key */ }
+      }
+    }
+  }catch(e){
+    console.error("Couldn't load edits for export:", e);
+  }
+  return items;
+}
+
+async function openExport(){
+  document.getElementById('exportOverlay').classList.add('show');
+  document.getElementById('exportDrawer').classList.add('show');
+  const content = document.getElementById('exportContent');
+  content.innerHTML = '<div class="export-empty">Loading your edits...</div>';
+
+  const items = await buildExportData();
+  content.innerHTML = "";
+
+  if(items.length === 0){
+    content.innerHTML = '<div class="export-empty">No edits saved yet. Use the Edit link on any step, save a change, then come back here.</div>';
+    return;
+  }
+
+  const countTag = document.createElement('div');
+  countTag.className = 'export-count';
+  countTag.textContent = items.length + (items.length === 1 ? ' edit found' : ' edits found');
+  content.appendChild(countTag);
+
+  const list = document.createElement('ul');
+  list.className = 'export-item-list';
+  items.forEach(it=>{
+    const li = document.createElement('li');
+    li.innerHTML = '<b>' + escapeHtml(it.flow) + ' \u2192 ' + escapeHtml(it.stepId) + '</b> (' + escapeHtml(it.part) + ') \u2014 ' + escapeHtml(it.path);
+    list.appendChild(li);
+  });
+  content.appendChild(list);
+
+  const textarea = document.createElement('textarea');
+  textarea.className = 'export-textarea';
+  textarea.readOnly = true;
+  textarea.value = JSON.stringify(items, null, 2);
+  content.appendChild(textarea);
+
+  const copyBtn = document.createElement('button');
+  copyBtn.className = 'export-copy-btn';
+  copyBtn.textContent = 'Copy to Clipboard';
+  copyBtn.onclick = async ()=>{
+    try{
+      await navigator.clipboard.writeText(textarea.value);
+    }catch(e){
+      textarea.select();
+      try{ document.execCommand('copy'); }catch(e2){ /* clipboard unavailable */ }
+    }
+    copyBtn.textContent = 'Copied!';
+    copyBtn.classList.add('copied');
+    setTimeout(()=>{ copyBtn.textContent = 'Copy to Clipboard'; copyBtn.classList.remove('copied'); }, 2000);
+  };
+  content.appendChild(copyBtn);
+}
+
+function closeExport(){
+  document.getElementById('exportOverlay').classList.remove('show');
+  document.getElementById('exportDrawer').classList.remove('show');
+}
+
+renderCats();
+renderAxisPanel();
+renderLedger();
+</script>
+</body>
+</html>
