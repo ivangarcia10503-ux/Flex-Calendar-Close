@@ -654,14 +654,12 @@ await saveSharedState({
 onSnapshot(
   doc(db, "shared", "appState"),
   (snapshot) => {
-
     sharedState = snapshot.data() || {};
 
     console.log(
       "Realtime Update:",
       sharedState
     );
-
   }
 );
 
@@ -669,7 +667,7 @@ onSnapshot(
 
 
 /* ---------------- Business day engine ---------------- */
-function isWeekend(d){ const w=d.getDay(); return w===0||w===6; }
+function isWeekend(d){ const w=d.getDay(); return w===0||w===6; 
 function lastBizDayOfMonth(year, monthIdx){
   let d = new Date(year, monthIdx+1, 0);
   while(isWeekend(d)) d.setDate(d.getDate()-1);
