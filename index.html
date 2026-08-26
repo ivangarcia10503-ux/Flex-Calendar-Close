@@ -292,6 +292,63 @@ details.refs[open] summary:before{content:"– references";}
   padding:2px 7px; border-radius:99px; cursor:pointer; white-space:nowrap;
 }
 .pin-badge:hover{background:#F4E1A0;}
+
+/* ---- Sub-tasks ---- */
+.sub-badge{
+  font-size:0.68rem; font-weight:600; color:var(--accent); background:var(--accent-soft); border:1px solid var(--accent);
+  padding:2px 7px; border-radius:99px; white-space:nowrap;
+}
+.chk.auto{cursor:not-allowed; opacity:0.9;}
+details.subtasks{margin-top:6px;}
+/* Direct-child combinator (>) is important here — without it, this selector also matches
+   the notes/refs <summary> elements nested inside each sub-task row (since they're
+   technically descendants of this details element too), overwriting their "+ notes" /
+   "+ references" labels with "+ sub-tasks". */
+details.subtasks > summary{
+  font-size:0.74rem; color:var(--accent); cursor:pointer; list-style:none; font-weight:500;
+}
+details.subtasks > summary::-webkit-details-marker{display:none;}
+details.subtasks > summary:before{content:"+ sub-tasks";}
+details.subtasks[open] > summary:before{content:"– sub-tasks";}
+.subtasks-body{margin-top:6px; padding:8px 10px; background:var(--paper); border-radius:8px; display:flex; flex-direction:column; gap:8px;}
+.sub-empty{font-size:0.78rem; color:var(--ink-soft);}
+.sub-item{
+  display:flex; gap:9px; align-items:flex-start; background:#fff; border:1px solid var(--line);
+  border-radius:9px; padding:9px 10px;
+}
+.sub-item.done{opacity:0.6;}
+.sub-chk{
+  width:17px; height:17px; border-radius:5px; border:1.5px solid var(--ink-soft); flex-shrink:0; margin-top:1px;
+  cursor:pointer; display:flex; align-items:center; justify-content:center; background:#fff; color:#fff; font-size:0.66rem;
+}
+.sub-chk.checked{background:var(--good); border-color:var(--good);}
+.sub-body{flex:1; min-width:0;}
+.sub-title-row{display:flex; align-items:center; gap:6px; flex-wrap:wrap;}
+.sub-title-text{font-size:0.85rem; font-weight:600; color:var(--ink);}
+.sub-title-text.strike{text-decoration:line-through; color:var(--ink-soft); font-weight:400;}
+.sub-title-edit-btn, .sub-del-btn{border:none; background:none; color:var(--accent); cursor:pointer; font-size:0.72rem;}
+.sub-del-btn{color:var(--ink-soft);}
+.sub-del-btn:hover{color:#B33;}
+.sub-title-edit{display:flex; gap:6px; align-items:center; flex-wrap:wrap;}
+.sub-title-input{
+  flex:1; min-width:120px; font-family:'Inter',sans-serif; font-size:0.82rem; border:1px solid var(--line);
+  border-radius:7px; padding:5px 8px; color:var(--ink);
+}
+.sub-title-save, .sub-title-cancel{border:none; border-radius:7px; padding:5px 11px; font-size:0.72rem; font-weight:600; cursor:pointer;}
+.sub-title-save{background:var(--accent); color:#fff;}
+.sub-title-cancel{background:var(--line); color:var(--ink);}
+.sub-add{display:flex; flex-direction:column; gap:6px;}
+.sub-add-input{
+  font-family:'Inter',sans-serif; font-size:0.8rem; border:1px solid var(--line); border-radius:7px;
+  padding:6px 8px; background:#fff; color:var(--ink);
+}
+.sub-add-btn{
+  align-self:flex-end; background:var(--accent); color:#fff; border:none; border-radius:7px;
+  padding:5px 12px; font-size:0.74rem; font-weight:600; cursor:pointer;
+}
+.sub-add-btn:hover{opacity:0.9;}
+.sub-add-error{font-size:0.74rem; color:#B33;}
+
 .qtoggle{
   font-size:0.78rem; color:var(--ink-soft); text-align:center; margin:10px 0 4px;
   cursor:pointer; text-decoration:underline; text-underline-offset:2px;
@@ -789,9 +846,239 @@ async function saveNoteOverride(taskId, text){
   noteOverrides[taskId] = text;
   await pSet('close-tasknotes-v1', JSON.stringify(noteOverrides));
 }
-function getNoteText(task){
-  return noteOverrides[task.id] !== undefined ? noteOverrides[task.id] : (task.notes || '');
+function getNoteTextById(id, defaultText){
+  return noteOverrides[id] !== undefined ? noteOverrides[id] : (defaultText || '');
 }
+function getNoteText(task){
+  return getNoteTextById(task.id, task.notes);
+}
+function buildNotesBlock(id, defaultText){
+  const noteText = getNoteTextById(id, defaultText);
+  const isEditingNote = editingNotes.has(id);
+  const notesOpen = isEditingNote || openNotes.has(id);
+  if(isEditingNote){
+    const draft = noteDrafts[id] !== undefined ? noteDrafts[id] : noteText;
+    return `
+      <details class="notes" ${notesOpen?'open':''} data-noteid="${id}">
+        <summary></summary>
+        <div class="notebody">
+          <textarea class="note-edit-area" data-editarea="${id}">${esc(draft)}</textarea>
+          <div class="note-edit-actions">
+            <button class="note-save" data-savenote="${id}">Save</button>
+            <button class="note-cancel" data-cancelnote="${id}">Cancel</button>
+          </div>
+        </div>
+      </details>`;
+  }
+  return `
+    <details class="notes" ${notesOpen?'open':''} data-noteid="${id}">
+      <summary></summary>
+      <div class="notebody">
+        <div class="notebody-text">${esc(noteText)}</div>
+        <button class="note-edit-btn" data-editnote="${id}">✎ Edit</button>
+      </div>
+    </details>`;
+}
+function buildRefsBlock(id){
+  const refs = referencesMap[id] || [];
+  const refsOpen = openRefs.has(id);
+  const refItems = refs.length
+    ? refs.map(r=>{
+        let mainLink;
+        if(r.hasFile){
+          mainLink = `<button type="button" class="ref-link ref-file-open" data-openreffile="${id}|${r.id}">📎 ${esc(r.fileName||'file')}${r.fileSize?` (${formatFileSize(r.fileSize)})`:''}</button>`;
+        } else if(isHttpUrl(r.url)){
+          mainLink = `<a class="ref-link" href="${esc(r.url)}" target="_blank" rel="noopener">${esc(r.url)}</a>`;
+        } else {
+          mainLink = `<span class="ref-path mono">${esc(r.url)}</span>`;
+        }
+        return `
+        <div class="ref-item">
+          <span class="ref-label">${esc(r.label)}</span>
+          ${mainLink}
+          <button class="ref-del" data-delref="${id}|${r.id}" title="Remove reference">✕</button>
+        </div>`;
+      }).join('')
+    : `<div class="ref-empty">No reference guides added yet.</div>`;
+  const pendingFile = pendingRefFiles[id];
+  const pendingFileHtml = pendingFile
+    ? `<div class="ref-pending-file">📎 ${esc(pendingFile.name)} (${formatFileSize(pendingFile.size)}) ready to attach <button type="button" class="ref-pending-clear" data-clearpending="${id}">✕</button></div>`
+    : '';
+  const refErr = refAddErrors[id] ? `<div class="ref-add-error">${esc(refAddErrors[id])}</div>` : '';
+  return `
+    <details class="refs" ${refsOpen?'open':''} data-refid="${id}">
+      <summary></summary>
+      <div class="refs-body">
+        ${refItems}
+        <div class="ref-add">
+          <div class="ref-add-row">
+            <input type="text" class="ref-input-label" data-refuidlabel="${id}" value="${pendingFile ? esc(pendingFile.name) : ''}" placeholder="Label (e.g. Perfect Pay SOP.docx)">
+            <button type="button" class="ref-browse-btn" data-refbrowse="${id}" title="Choose a Word/Excel/PDF file from your computer">📁 Browse…</button>
+            <input type="file" class="ref-file-input" data-reffileinput="${id}" style="display:none;">
+          </div>
+          ${pendingFileHtml}
+          <input type="text" class="ref-input-url" data-refuidurl="${id}" placeholder="${pendingFile ? "Optional — also add a link if it lives somewhere else too" : "Paste a link (SharePoint, Drive) — or attach a file above instead"}">
+          ${refErr}
+          <button class="ref-add-btn" data-refadd="${id}">+ Add</button>
+        </div>
+      </div>
+    </details>`;
+}
+
+// ---- Sub-tasks: each parent checkbox can hold a checklist of its own. Notes and
+// references for sub-tasks reuse the exact same evergreen stores as main tasks
+// (noteOverrides / referencesMap) keyed by a compound id, so all the existing
+// editing/file-upload machinery above works for them with no duplication.
+let subtasksMap = {}; // {parentId: [{id, title}]}
+let openSubtasks = new Set();
+let editingSubTitle = new Set();
+let subTitleDrafts = {};
+let subAddErrors = {};
+let subCompleted = {}; // {parentId::subId: true} for the CURRENT month
+
+function subEid(parentId, subId){ return parentId+'::'+subId; }
+
+async function loadSubtasks(){
+  const raw = await pGet('close-subtasks-v1');
+  try{ subtasksMap = raw ? JSON.parse(raw) : {}; }catch(e){ subtasksMap = {}; }
+}
+async function saveSubtasksMap(){
+  await pSet('close-subtasks-v1', JSON.stringify(subtasksMap));
+}
+async function loadSubCompletedForMonth(){
+  subCompleted = {};
+  const raw = await pGet('close-subcompleted:'+monthKey());
+  let ids = [];
+  try{ ids = raw ? JSON.parse(raw) : []; }catch(e){ ids = []; }
+  ids.forEach(k=>{ subCompleted[k] = true; });
+}
+async function saveSubCompletedForMonth(){
+  await pSet('close-subcompleted:'+monthKey(), JSON.stringify(Object.keys(subCompleted)));
+}
+function isSubDone(parentId, subId){ return !!subCompleted[subEid(parentId, subId)]; }
+
+// Keeps a parent checkbox's completion state derived from its sub-tasks — this is what
+// makes the parent check itself off automatically once every sub-task is done, and
+// un-check itself if one gets un-checked again. Split into a synchronous in-memory step
+// (so the UI can update instantly) and the actual persistence, which happens afterward.
+function syncParentFromSubtasksInMemory(parentId){
+  const subs = subtasksMap[parentId] || [];
+  if(!subs.length) return false;
+  const shouldBeDone = subs.every(s => isSubDone(parentId, s.id));
+  const key = storeKey(parentId);
+  const currentlyDone = !!completed[key];
+  if(shouldBeDone !== currentlyDone){
+    if(shouldBeDone) completed[key] = true; else delete completed[key];
+    return true; // changed — needs persisting
+  }
+  return false;
+}
+async function syncParentFromSubtasks(parentId){
+  if(syncParentFromSubtasksInMemory(parentId)) await saveCompletedForMonth();
+}
+async function syncAllParentsFromSubtasks(){
+  for(const parentId of Object.keys(subtasksMap)){
+    await syncParentFromSubtasks(parentId);
+  }
+}
+
+async function toggleSubComplete(parentId, subId){
+  const eid = subEid(parentId, subId);
+  if(subCompleted[eid]) delete subCompleted[eid];
+  else subCompleted[eid] = true;
+  const parentChanged = syncParentFromSubtasksInMemory(parentId);
+  render(); // instant visual feedback — no storage round trip in the way
+  // Persist afterward, in the background. The checkbox already shows the right
+  // state, so any storage latency (e.g. Claude.ai's host storage) no longer
+  // makes the click feel slow.
+  const saves = [saveSubCompletedForMonth()];
+  if(parentChanged) saves.push(saveCompletedForMonth());
+  await Promise.all(saves);
+}
+async function addSubtask(parentId, title){
+  if(!title || !title.trim()) return {ok:false, error:'Please enter a sub-task title.'};
+  if(!subtasksMap[parentId]) subtasksMap[parentId] = [];
+  const id = 'sub'+Date.now()+Math.random().toString(36).slice(2,6);
+  subtasksMap[parentId].push({id, title:title.trim()});
+  openSubtasks.add(parentId);
+  await saveSubtasksMap();
+  await syncParentFromSubtasks(parentId);
+  render();
+  return {ok:true};
+}
+async function deleteSubtask(parentId, subId){
+  subtasksMap[parentId] = (subtasksMap[parentId]||[]).filter(s=>s.id!==subId);
+  await saveSubtasksMap();
+  const eid = subEid(parentId, subId);
+  if(noteOverrides[eid] !== undefined){
+    delete noteOverrides[eid];
+    await pSet('close-tasknotes-v1', JSON.stringify(noteOverrides));
+  }
+  const refs = referencesMap[eid] || [];
+  for(const r of refs){ if(r.hasFile) await deleteRefFile(r.id); }
+  if(referencesMap[eid]){
+    delete referencesMap[eid];
+    await saveReferences();
+  }
+  if(subCompleted[eid]){
+    delete subCompleted[eid];
+    await saveSubCompletedForMonth();
+  }
+  await syncParentFromSubtasks(parentId);
+  render();
+}
+function buildSubtaskRow(parent, s){
+  const eid = subEid(parent.id, s.id);
+  const done = isSubDone(parent.id, s.id);
+  const isEditingTitle = editingSubTitle.has(eid);
+  let titleBlock;
+  if(isEditingTitle){
+    const draft = subTitleDrafts[eid] !== undefined ? subTitleDrafts[eid] : s.title;
+    titleBlock = `
+      <div class="sub-title-edit">
+        <input type="text" class="sub-title-input" data-subtitleedit="${eid}" value="${esc(draft)}" placeholder="Sub-task title">
+        <button class="sub-title-save" data-subtitlesave="${parent.id}|${s.id}">Save</button>
+        <button class="sub-title-cancel" data-subtitlecancel="${eid}">Cancel</button>
+      </div>`;
+  } else {
+    titleBlock = `
+      <div class="sub-title-row">
+        <span class="sub-title-text ${done?'strike':''}">${esc(s.title)}</span>
+        <button class="sub-title-edit-btn" data-subtitleeditbtn="${parent.id}|${s.id}" title="Edit sub-task title">✎</button>
+        <button class="sub-del-btn" data-subdel="${parent.id}|${s.id}" title="Remove this sub-task">🗑</button>
+      </div>`;
+  }
+  return `
+    <div class="sub-item ${done?'done':''}">
+      <div class="sub-chk ${done?'checked':''}" data-subtoggle="${parent.id}|${s.id}">${done?'✓':''}</div>
+      <div class="sub-body">
+        ${titleBlock}
+        ${buildNotesBlock(eid, '')}
+        ${buildRefsBlock(eid)}
+      </div>
+    </div>`;
+}
+function buildSubtasksBlock(t){
+  const subs = subtasksMap[t.id] || [];
+  const subsOpenState = openSubtasks.has(t.id);
+  const rows = subs.length
+    ? subs.map(s=>buildSubtaskRow(t, s)).join('')
+    : `<div class="sub-empty">No sub-tasks yet — add one below.</div>`;
+  const subErr = subAddErrors[t.id] ? `<div class="sub-add-error">${esc(subAddErrors[t.id])}</div>` : '';
+  return `
+    <details class="subtasks" ${subsOpenState?'open':''} data-subtasksid="${t.id}">
+      <summary></summary>
+      <div class="subtasks-body">
+        ${rows}
+        <div class="sub-add">
+          <input type="text" class="sub-add-input" data-subaddtitle="${t.id}" placeholder="New sub-task title">
+          ${subErr}
+          <button class="sub-add-btn" data-subadd="${t.id}">+ Add sub-task</button>
+        </div>
+      </div>
+    </details>`;
+}
+
 
 // Editable name / assignment overrides — evergreen like notes, apply to every month,
 // and work uniformly for both built-in and custom tasks.
@@ -932,6 +1219,16 @@ async function addCustomTask(task){
 async function deleteCustomTask(id){
   customTasks = customTasks.filter(t=>t.id!==id);
   await saveCustomTasks();
+  if(subtasksMap[id]){
+    for(const s of subtasksMap[id]){
+      const eid = subEid(id, s.id);
+      if(referencesMap[eid]){
+        for(const r of referencesMap[eid]){ if(r.hasFile) await deleteRefFile(r.id); }
+      }
+    }
+    delete subtasksMap[id];
+    await saveSubtasksMap();
+  }
   render();
 }
 function getTaskTab(task){
@@ -1043,8 +1340,10 @@ async function loadCompletedForMonth(){
 async function saveCompletedForMonth(){
   const prefix = 'close:'+monthKey()+':';
   const ids = Object.keys(completed).filter(k=>k.startsWith(prefix)).map(k=>k.slice(prefix.length));
-  await pSet('close-completed:'+monthKey(), JSON.stringify(ids));
-  await registerMonthInIndex();
+  await Promise.all([
+    pSet('close-completed:'+monthKey(), JSON.stringify(ids)),
+    registerMonthInIndex()
+  ]);
 }
 
 async function toggleComplete(taskUid){
@@ -1052,8 +1351,8 @@ async function toggleComplete(taskUid){
   const isDone = !!completed[key];
   if(isDone) delete completed[key];
   else completed[key] = true;
+  render(); // instant visual feedback — persist in the background below
   await saveCompletedForMonth();
-  render();
 }
 
 /* ---------------- Date resolution ---------------- */
@@ -1243,79 +1542,20 @@ function renderList(){
         ? `<span class="custom-tag">custom</span><button class="task-del-btn" data-deltask="${t.id}" title="Remove this checkbox">🗑</button>`
         : `<button class="task-del-btn" data-hidetask="${t.id}" title="Hide this checkbox (restorable above)">🗑</button>`;
 
+      // Sub-tasks: a parent auto-checks itself once every sub-task is done (see
+      // syncParentFromSubtasks), so its own checkbox becomes read-only while any exist.
+      const subs = subtasksMap[t.id] || [];
+      const hasSubs = subs.length > 0;
+      const subDoneCount = subs.filter(s=>isSubDone(t.id, s.id)).length;
+      const subBadge = hasSubs ? `<span class="sub-badge">☑ ${subDoneCount}/${subs.length}</span>` : '';
+
       // Editable, evergreen "how to do this step" notes — rolls forward to every month.
-      const noteText = getNoteText(t);
-      const isEditingNote = editingNotes.has(t.id);
-      const notesOpen = isEditingNote || openNotes.has(t.id);
-      let notesBlock = '';
-      if(isEditingNote){
-        const draft = noteDrafts[t.id] !== undefined ? noteDrafts[t.id] : noteText;
-        notesBlock = `
-          <details class="notes" ${notesOpen?'open':''} data-noteid="${t.id}">
-            <summary></summary>
-            <div class="notebody">
-              <textarea class="note-edit-area" data-editarea="${t.id}">${esc(draft)}</textarea>
-              <div class="note-edit-actions">
-                <button class="note-save" data-savenote="${t.id}">Save</button>
-                <button class="note-cancel" data-cancelnote="${t.id}">Cancel</button>
-              </div>
-            </div>
-          </details>`;
-      } else {
-        notesBlock = `
-          <details class="notes" ${notesOpen?'open':''} data-noteid="${t.id}">
-            <summary></summary>
-            <div class="notebody">
-              <div class="notebody-text">${esc(noteText)}</div>
-              <button class="note-edit-btn" data-editnote="${t.id}">✎ Edit</button>
-            </div>
-          </details>`;
-      }
+      const notesBlock = buildNotesBlock(t.id, t.notes);
 
       // Reference guides — file links / SharePoint paths, also evergreen across months.
-      const refs = referencesMap[t.id] || [];
-      const refsOpen = openRefs.has(t.id);
-      const refItems = refs.length
-        ? refs.map(r=>{
-            let mainLink;
-            if(r.hasFile){
-              mainLink = `<button type="button" class="ref-link ref-file-open" data-openreffile="${t.id}|${r.id}">📎 ${esc(r.fileName||'file')}${r.fileSize?` (${formatFileSize(r.fileSize)})`:''}</button>`;
-            } else if(isHttpUrl(r.url)){
-              mainLink = `<a class="ref-link" href="${esc(r.url)}" target="_blank" rel="noopener">${esc(r.url)}</a>`;
-            } else {
-              mainLink = `<span class="ref-path mono">${esc(r.url)}</span>`;
-            }
-            return `
-            <div class="ref-item">
-              <span class="ref-label">${esc(r.label)}</span>
-              ${mainLink}
-              <button class="ref-del" data-delref="${t.id}|${r.id}" title="Remove reference">✕</button>
-            </div>`;
-          }).join('')
-        : `<div class="ref-empty">No reference guides added yet.</div>`;
-      const pendingFile = pendingRefFiles[t.id];
-      const pendingFileHtml = pendingFile
-        ? `<div class="ref-pending-file">📎 ${esc(pendingFile.name)} (${formatFileSize(pendingFile.size)}) ready to attach <button type="button" class="ref-pending-clear" data-clearpending="${t.id}">✕</button></div>`
-        : '';
-      const refErr = refAddErrors[t.id] ? `<div class="ref-add-error">${esc(refAddErrors[t.id])}</div>` : '';
-      const refsBlock = `
-        <details class="refs" ${refsOpen?'open':''} data-refid="${t.id}">
-          <summary></summary>
-          <div class="refs-body">
-            ${refItems}
-            <div class="ref-add">
-              <div class="ref-add-row">
-                <input type="text" class="ref-input-label" data-refuidlabel="${t.id}" value="${pendingFile ? esc(pendingFile.name) : ''}" placeholder="Label (e.g. Perfect Pay SOP.docx)">
-                <button type="button" class="ref-browse-btn" data-refbrowse="${t.id}" title="Choose a Word/Excel/PDF file from your computer">📁 Browse…</button>
-                <input type="file" class="ref-file-input" data-reffileinput="${t.id}" style="display:none;">
-              </div>
-              ${pendingFileHtml}
-              <input type="text" class="ref-input-url" data-refuidurl="${t.id}" placeholder="${pendingFile ? "Optional — also add a link if it lives somewhere else too" : "Paste a link (SharePoint, Drive) — or attach a file above instead"}">
-              ${refErr}
-              <button class="ref-add-btn" data-refadd="${t.id}">+ Add</button>
-            </div>
-          </div>
-        </details>`;
+      const refsBlock = buildRefsBlock(t.id);
+
+      const subtasksBlock = buildSubtasksBlock(t);
 
       // Editable name / assignment / WD offset / contacts — evergreen, applies to every month.
       const isEditingFields = editingFieldTasks.has(t.id);
@@ -1357,7 +1597,7 @@ function renderList(){
       } else {
         cardTopBlock = `
           <div class="card-top">
-            <div class="card-title"><span class="${done?'strike':''}">${t.taskId?`<span class="taskid">${t.taskId}</span>`:''}${esc(dName)}</span> ${pin}${customTag}<button class="field-edit-btn" data-editfields="${t.id}" title="Edit name/assignment/WD/contacts">✎</button></div>
+            <div class="card-title"><span class="${done?'strike':''}">${t.taskId?`<span class="taskid">${t.taskId}</span>`:''}${esc(dName)}</span> ${pin}${subBadge}${customTag}<button class="field-edit-btn" data-editfields="${t.id}" title="Edit name/assignment/WD/contacts">✎</button></div>
             <div>${dateChips}</div>
           </div>`;
         metaBlock = `<div class="card-meta"><b>${esc(dPreparer)}</b> → <b>${esc(dReviewer)}</b> · ${t.cadence==='quarterly'?'Quarterly':'Monthly'}</div>`;
@@ -1365,13 +1605,14 @@ function renderList(){
 
       html += `
         <div class="card ${done?'done':''} ${t.mine?'mine':''} ${hasNote?'has-note':''}" id="card-${t.id}">
-          <div class="chk ${done?'checked':''}" data-toggle="${t.id}">${done?'✓':''}</div>
+          <div class="chk ${done?'checked':''} ${hasSubs?'auto':''}" data-toggle="${t.id}" ${hasSubs?'title="Checks itself off automatically once every sub-task below is complete"':''}>${done?'✓':''}</div>
           <div class="card-body">
             ${cardTopBlock}
             ${metaBlock}
             <div class="deadline-raw mono">${esc(dRaw)}${t.offsetQE!==undefined?' (adjusts on quarter-end months)':''}</div>
             ${dContact?`<div class="contact-line">Contacts: ${esc(dContact)}</div>`:''}
             ${notesBlock}
+            ${subtasksBlock}
             ${refsBlock}
           </div>
         </div>`;
@@ -1380,10 +1621,82 @@ function renderList(){
   container.innerHTML = html;
 
   container.querySelectorAll('[data-toggle]').forEach(el=>{
-    el.addEventListener('click', ()=> toggleComplete(el.dataset.toggle));
+    el.addEventListener('click', ()=>{
+      const id = el.dataset.toggle;
+      if((subtasksMap[id]||[]).length){
+        showSaveStatus('This item checks itself off automatically once every sub-task below is complete.', false);
+        return;
+      }
+      toggleComplete(id);
+    });
   });
   container.querySelectorAll('[data-jumpnotes]').forEach(el=>{
     el.addEventListener('click', ()=> jumpToNotes(el.dataset.jumpnotes));
+  });
+  container.querySelectorAll('[data-subtoggle]').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      const [parentId, subId] = el.dataset.subtoggle.split('|');
+      toggleSubComplete(parentId, subId);
+    });
+  });
+  container.querySelectorAll('[data-subtitleeditbtn]').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      const [parentId, subId] = el.dataset.subtitleeditbtn.split('|');
+      const eid = subEid(parentId, subId);
+      editingSubTitle.add(eid);
+      const sub = (subtasksMap[parentId]||[]).find(s=>s.id===subId);
+      subTitleDrafts[eid] = sub ? sub.title : '';
+      render();
+    });
+  });
+  container.querySelectorAll('[data-subtitlecancel]').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      editingSubTitle.delete(el.dataset.subtitlecancel);
+      delete subTitleDrafts[el.dataset.subtitlecancel];
+      render();
+    });
+  });
+  container.querySelectorAll('[data-subtitleedit]').forEach(el=>{
+    el.addEventListener('input', ()=>{ subTitleDrafts[el.dataset.subtitleedit] = el.value; });
+  });
+  container.querySelectorAll('[data-subtitlesave]').forEach(el=>{
+    el.addEventListener('click', async ()=>{
+      const [parentId, subId] = el.dataset.subtitlesave.split('|');
+      const eid = subEid(parentId, subId);
+      const val = (subTitleDrafts[eid]||'').trim();
+      if(!val) return;
+      const sub = (subtasksMap[parentId]||[]).find(s=>s.id===subId);
+      if(sub) sub.title = val;
+      await saveSubtasksMap();
+      editingSubTitle.delete(eid);
+      delete subTitleDrafts[eid];
+      render();
+    });
+  });
+  container.querySelectorAll('[data-subdel]').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      const [parentId, subId] = el.dataset.subdel.split('|');
+      deleteSubtask(parentId, subId);
+    });
+  });
+  container.querySelectorAll('[data-subadd]').forEach(el=>{
+    el.addEventListener('click', async ()=>{
+      const parentId = el.dataset.subadd;
+      const input = container.querySelector(`[data-subaddtitle="${parentId}"]`);
+      const result = await addSubtask(parentId, input.value);
+      if(result && !result.ok){
+        subAddErrors[parentId] = result.error;
+        render();
+      } else {
+        delete subAddErrors[parentId];
+      }
+    });
+  });
+  container.querySelectorAll('details.subtasks').forEach(el=>{
+    const id = el.dataset.subtasksid;
+    el.addEventListener('toggle', ()=>{
+      if(el.open) openSubtasks.add(id); else openSubtasks.delete(id);
+    });
   });
   container.querySelectorAll('[data-editfields]').forEach(el=>{
     el.addEventListener('click', ()=>{
@@ -1639,6 +1952,8 @@ function render(){
 async function refreshAll(){
   await loadCompletedForMonth();
   await loadNotesForMonth();
+  await loadSubCompletedForMonth();
+  await syncAllParentsFromSubtasks();
   render();
 }
 
@@ -1944,7 +2259,8 @@ async function init(){
     loadReferences(),
     loadCustomTasks(),
     loadHiddenTasks(),
-    loadMonthsIndex()
+    loadMonthsIndex(),
+    loadSubtasks()
   ]);
   updateLinkStatusUI();
   await refreshAll();
