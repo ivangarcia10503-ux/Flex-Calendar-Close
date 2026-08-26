@@ -1435,6 +1435,12 @@ async function saveCompletedForMonth(){
     pSet('close-completed:'+monthKey(), JSON.stringify(ids)),
     registerMonthInIndex()
   ]);
+
+await saveSharedState({
+  completed: completed
+});
+
+
 }
 
 async function toggleComplete(taskUid){
