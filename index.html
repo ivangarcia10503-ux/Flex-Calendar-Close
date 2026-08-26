@@ -268,6 +268,19 @@ details.refs[open] summary:before{content:"– references";}
   padding:6px 10px; font-size:0.72rem; font-weight:600; cursor:pointer; white-space:nowrap;
 }
 .ref-browse-btn:hover{background:var(--div-accent-soft); border-color:var(--div-accent);}
+.ref-pending-file{
+  font-size:0.74rem; color:var(--div-accent); background:var(--div-accent-soft); border:1px solid var(--div-accent);
+  border-radius:7px; padding:5px 9px; display:flex; align-items:center; justify-content:space-between; gap:8px;
+}
+.ref-pending-clear{border:none; background:none; color:var(--div-accent); cursor:pointer; font-size:0.78rem; flex-shrink:0;}
+.ref-pending-clear:hover{color:#B33;}
+.ref-add-error{font-size:0.74rem; color:#B33;}
+.ref-file-open{
+  border:none; background:none; padding:0; font:inherit; cursor:pointer;
+  color:var(--div-accent); text-decoration:underline; text-align:left;
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1; min-width:0;
+}
+.ref-file-open:hover{opacity:0.8;}
 .ref-add > .ref-add-btn{
   align-self:flex-end; background:var(--div-accent); color:#fff; border:none; border-radius:7px;
   padding:5px 12px; font-size:0.74rem; font-weight:600; cursor:pointer;
@@ -820,20 +833,83 @@ async function loadReferences(){
 async function saveReferences(){
   await pSet('close-references-v1', JSON.stringify(referencesMap));
 }
-async function addReference(taskId, label, url){
-  if(!taskId || !label.trim() || !url.trim()) return;
+
+// Uploaded file storage — this always goes through IndexedDB directly (not the pGet/pSet
+// tiers above), since real Word/Excel/PDF file content is exactly the thing window.storage
+// (JSON only) and localStorage (small string-only quota) can't hold. IndexedDB natively
+// stores File/Blob objects and typically allows hundreds of MB or more.
+const REF_FILE_MAX_BYTES = 20 * 1024 * 1024; // 20MB per file — generous for SOP-style docs
+async function storeRefFile(refId, file){
+  await idbSet('reffile:'+refId, file);
+}
+async function getRefFile(refId){
+  try{ return await idbGet('reffile:'+refId); }catch(e){ return null; }
+}
+async function deleteRefFile(refId){
+  try{ await idbDelete('reffile:'+refId); }catch(e){ /* nothing to clean up */ }
+}
+function formatFileSize(bytes){
+  if(!bytes && bytes !== 0) return '';
+  if(bytes < 1024) return bytes + ' B';
+  if(bytes < 1024*1024) return Math.round(bytes/1024) + ' KB';
+  return (bytes/(1024*1024)).toFixed(1) + ' MB';
+}
+
+async function addReference(taskId, label, url, file){
+  if(!taskId || !label.trim()) return {ok:false, error:'Please enter a label.'};
+  const trimmedUrl = (url||'').trim();
+  if(!file && !trimmedUrl) return {ok:false, error:'Attach a file or paste a link.'};
+  if(file && file.size > REF_FILE_MAX_BYTES){
+    return {ok:false, error:`That file is ${formatFileSize(file.size)} — the local limit here is ${formatFileSize(REF_FILE_MAX_BYTES)}. Try a link instead for larger files.`};
+  }
   if(!referencesMap[taskId]) referencesMap[taskId] = [];
-  referencesMap[taskId].push({id:'r'+Date.now()+Math.random().toString(36).slice(2,6), label:label.trim(), url:url.trim()});
+  const id = 'r'+Date.now()+Math.random().toString(36).slice(2,6);
+  const entry = { id, label: label.trim(), url: trimmedUrl };
+  if(file){
+    try{
+      await storeRefFile(id, file);
+      entry.hasFile = true;
+      entry.fileName = file.name;
+      entry.fileType = file.type;
+      entry.fileSize = file.size;
+    }catch(e){
+      console.error('Could not store file locally', e);
+      return {ok:false, error:'Could not save that file in this browser — try a smaller file or use a link instead.'};
+    }
+  }
+  referencesMap[taskId].push(entry);
   openRefs.add(taskId);
   await saveReferences();
   render();
+  return {ok:true};
 }
 async function deleteReference(taskId, refId){
+  const entry = (referencesMap[taskId]||[]).find(r=>r.id===refId);
   referencesMap[taskId] = (referencesMap[taskId]||[]).filter(r=>r.id!==refId);
   await saveReferences();
+  if(entry && entry.hasFile) await deleteRefFile(refId);
   render();
 }
+async function openRefFile(taskId, refId){
+  const entry = (referencesMap[taskId]||[]).find(r=>r.id===refId);
+  if(!entry) return;
+  const file = await getRefFile(refId);
+  if(!file){
+    showSaveStatus('Could not find that stored file in this browser — it may have been cleared.', true);
+    return;
+  }
+  const url = URL.createObjectURL(file);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = entry.fileName || 'file';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(()=> URL.revokeObjectURL(url), 1500);
+}
 function isHttpUrl(u){ return /^https?:\/\//i.test(u); }
+let pendingRefFiles = {}; // {taskId: File} — picked but not yet added
+let refAddErrors = {}; // {taskId: error message}
 
 // User-added checklist items. Evergreen like notes/references — they roll forward to every
 // month once created, alongside the built-in tasks, rather than being a one-off for this month.
@@ -1197,15 +1273,28 @@ function renderList(){
       const refs = referencesMap[t.id] || [];
       const refsOpen = openRefs.has(t.id);
       const refItems = refs.length
-        ? refs.map(r=>`
+        ? refs.map(r=>{
+            let mainLink;
+            if(r.hasFile){
+              mainLink = `<button type="button" class="ref-link ref-file-open" data-openreffile="${t.id}|${r.id}">📎 ${esc(r.fileName||'file')}${r.fileSize?` (${formatFileSize(r.fileSize)})`:''}</button>`;
+            } else if(isHttpUrl(r.url)){
+              mainLink = `<a class="ref-link" href="${esc(r.url)}" target="_blank" rel="noopener">${esc(r.url)}</a>`;
+            } else {
+              mainLink = `<span class="ref-path mono">${esc(r.url)}</span>`;
+            }
+            return `
             <div class="ref-item">
               <span class="ref-label">${esc(r.label)}</span>
-              ${isHttpUrl(r.url)
-                ? `<a class="ref-link" href="${esc(r.url)}" target="_blank" rel="noopener">${esc(r.url)}</a>`
-                : `<span class="ref-path mono">${esc(r.url)}</span>`}
+              ${mainLink}
               <button class="ref-del" data-delref="${t.id}|${r.id}" title="Remove reference">✕</button>
-            </div>`).join('')
+            </div>`;
+          }).join('')
         : `<div class="ref-empty">No reference guides added yet.</div>`;
+      const pendingFile = pendingRefFiles[t.id];
+      const pendingFileHtml = pendingFile
+        ? `<div class="ref-pending-file">📎 ${esc(pendingFile.name)} (${formatFileSize(pendingFile.size)}) ready to attach <button type="button" class="ref-pending-clear" data-clearpending="${t.id}">✕</button></div>`
+        : '';
+      const refErr = refAddErrors[t.id] ? `<div class="ref-add-error">${esc(refAddErrors[t.id])}</div>` : '';
       const refsBlock = `
         <details class="refs" ${refsOpen?'open':''} data-refid="${t.id}">
           <summary></summary>
@@ -1213,11 +1302,13 @@ function renderList(){
             ${refItems}
             <div class="ref-add">
               <div class="ref-add-row">
-                <input type="text" class="ref-input-label" data-refuidlabel="${t.id}" placeholder="Label (e.g. Perfect Pay SOP.docx)">
-                <button type="button" class="ref-browse-btn" data-refbrowse="${t.id}" title="Browse your computer for a file">📁 Browse…</button>
+                <input type="text" class="ref-input-label" data-refuidlabel="${t.id}" value="${pendingFile ? esc(pendingFile.name) : ''}" placeholder="Label (e.g. Perfect Pay SOP.docx)">
+                <button type="button" class="ref-browse-btn" data-refbrowse="${t.id}" title="Choose a Word/Excel/PDF file from your computer">📁 Browse…</button>
                 <input type="file" class="ref-file-input" data-reffileinput="${t.id}" style="display:none;">
               </div>
-              <input type="text" class="ref-input-url" data-refuidurl="${t.id}" placeholder="Paste where it's saved (SharePoint link, network path)">
+              ${pendingFileHtml}
+              <input type="text" class="ref-input-url" data-refuidurl="${t.id}" placeholder="${pendingFile ? "Optional — also add a link if it lives somewhere else too" : "Paste a link (SharePoint, Drive) — or attach a file above instead"}">
+              ${refErr}
               <button class="ref-add-btn" data-refadd="${t.id}">+ Add</button>
             </div>
           </div>
@@ -1400,7 +1491,15 @@ function renderList(){
       const id = el.dataset.refadd;
       const labelEl = container.querySelector(`[data-refuidlabel="${id}"]`);
       const urlEl = container.querySelector(`[data-refuidurl="${id}"]`);
-      await addReference(id, labelEl.value, urlEl.value);
+      const file = pendingRefFiles[id];
+      const result = await addReference(id, labelEl.value, urlEl.value, file);
+      if(result && !result.ok){
+        refAddErrors[id] = result.error;
+        render();
+        return;
+      }
+      delete pendingRefFiles[id];
+      delete refAddErrors[id];
     });
   });
   container.querySelectorAll('[data-refbrowse]').forEach(el=>{
@@ -1415,11 +1514,22 @@ function renderList(){
       const id = el.dataset.reffileinput;
       const file = el.files && el.files[0];
       if(!file) return;
-      const labelEl = container.querySelector(`[data-refuidlabel="${id}"]`);
-      const urlEl = container.querySelector(`[data-refuidurl="${id}"]`);
-      if(labelEl && !labelEl.value.trim()) labelEl.value = file.name;
-      if(urlEl) urlEl.focus();
+      pendingRefFiles[id] = file;
+      delete refAddErrors[id];
       el.value = ''; // reset so picking the same file again still fires change next time
+      render(); // rebuilds the label input pre-filled with the picked file's name (see refsBlock template)
+    });
+  });
+  container.querySelectorAll('[data-clearpending]').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      delete pendingRefFiles[el.dataset.clearpending];
+      render();
+    });
+  });
+  container.querySelectorAll('[data-openreffile]').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      const [taskId, refId] = el.dataset.openreffile.split('|');
+      openRefFile(taskId, refId);
     });
   });
   container.querySelectorAll('[data-delref]').forEach(el=>{
