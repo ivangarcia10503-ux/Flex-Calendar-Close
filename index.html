@@ -582,7 +582,61 @@ footer{margin-top:30px; text-align:center; font-size:0.72rem; color:var(--ink-so
 </aside>
 </div>
 
-<script>
+<script type="module">
+
+
+
+
+
+
+
+
+
+import { initializeApp } from
+'https://www.gstatic.com/firebasejs/12.2.1/firebase-app.js';
+
+import {
+  getFirestore,
+  doc,
+  getDoc,
+  setDoc,
+  onSnapshot
+} from
+'https://www.gstatic.com/firebasejs/12.2.1/firebase-firestore.js';
+
+const firebaseConfig = {
+  apiKey: "AIzaSyDeXUmWLfcKqGrW-zxLH11KnZUhCU9HQSE",
+  authDomain: "us-flex-calendar-close.firebaseapp.com",
+  projectId: "us-flex-calendar-close",
+  storageBucket: "us-flex-calendar-close.firebasestorage.app",
+  messagingSenderId: "529420946982",
+  appId: "1:529420946982:web:f62a168bb9ef89f91b20e7"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+
+const testDoc = await getDoc(
+  doc(db, "shared", "appState")
+);
+
+console.log(
+  "Firebase Connected:",
+  testDoc.data()
+);
+
+
+
+
+
+
+
+
+
+
+
+
 /* ---------------- Business day engine ---------------- */
 function isWeekend(d){ const w=d.getDay(); return w===0||w===6; }
 function lastBizDayOfMonth(year, monthIdx){
