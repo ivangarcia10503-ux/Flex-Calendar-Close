@@ -616,6 +616,27 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
+async function saveSharedState(data) {
+  await setDoc(
+    doc(db, "shared", "appState"),
+    data,
+    { merge: true }
+  );
+}
+
+async function loadSharedState() {
+  const snap = await getDoc(
+    doc(db, "shared", "appState")
+  );
+
+  if (!snap.exists()) return {};
+
+  return snap.data();
+}
+
+
+
+
 
 const testDoc = await getDoc(
   doc(db, "shared", "appState")
@@ -626,7 +647,9 @@ console.log(
   testDoc.data()
 );
 
-
+await saveSharedState({
+  lastConnected: new Date().toISOString()
+});
 
 
 
