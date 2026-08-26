@@ -651,7 +651,15 @@ await saveSharedState({
   lastConnected: new Date().toISOString()
 });
 
-
+onSnapshot(
+  doc(db, "shared", "appState"),
+  (snapshot) => {
+    console.log(
+      "Realtime Update:",
+      snapshot.data()
+    );
+  }
+);
 
 
 
