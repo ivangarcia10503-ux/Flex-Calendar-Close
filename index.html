@@ -804,8 +804,11 @@ async function saveFieldOverrides(){
   await pSet('close-taskfields-v1', JSON.stringify(fieldOverrides));
 }
 function getField(task, key){
+  // Any explicit override wins, including an empty string — that's what lets someone
+  // genuinely clear a field (e.g. removing all Contacts) rather than it silently
+  // reverting back to the original text.
   const o = fieldOverrides[task.id];
-  if(o && o[key] !== undefined && o[key] !== '') return o[key];
+  if(o && o[key] !== undefined) return o[key];
   return task[key] || '';
 }
 function getOffset(task){
@@ -1128,7 +1131,7 @@ function renderBanner(){
   if(activeTab !== 'div'){ slot.innerHTML=''; return; }
   const items = GENERAL_TIMELINE.map(g=>{
     const d = resolveOffsetDate(g.offset);
-    return `<div class="item"><b>${g.label}</b><span class="mono">${fmtShort(d)} (WD+${g.offset}${g.note?', '+g.note:''})</span></div>`;
+    return `<div class="item"><b>${g.label}</b><span class="mono">${fmtShort(d)} (WD+${g.offset})</span></div>`;
   }).join('');
   slot.innerHTML = `<div class="banner"><div class="item" style="width:100%; font-weight:600; color:var(--div-accent); margin-bottom:2px;">General Close Timeline</div>${items}</div>`;
 }
@@ -1232,7 +1235,7 @@ function renderList(){
       const dates = resolvedDates(t);
       let dateChips = t.special
         ? `<span class="datechip">${t.raw}</span>`
-        : dates.map(d=>`<span class="datechip">${fmtDate(d.date)}${d.note?' · '+d.note:''}</span>`).join(' ');
+        : dates.map(d=>`<span class="datechip">${fmtDate(d.date)}</span>`).join(' ');
       const taskNotes = notesList.filter(n=>n.taskUid===t.id);
       const hasNote = taskNotes.length>0;
       const pin = hasNote ? `<span class="pin-badge" data-jumpnotes="${t.id}">📝 ${taskNotes.length}</span>` : '';
@@ -1314,17 +1317,18 @@ function renderList(){
           </div>
         </details>`;
 
-      // Editable name / assignment / WD offset — evergreen, applies to every month.
+      // Editable name / assignment / WD offset / contacts — evergreen, applies to every month.
       const isEditingFields = editingFieldTasks.has(t.id);
       const dName = getField(t,'deliverable');
       const dPreparer = getField(t,'preparer');
       const dReviewer = getField(t,'reviewer');
+      const dContact = getField(t,'contact');
       const canEditWD = !t.deadlines && !t.special;
       const dRaw = getRaw(t);
 
       let cardTopBlock, metaBlock;
       if(isEditingFields){
-        const draft = fieldDrafts[t.id] || {deliverable:dName, preparer:dPreparer, reviewer:dReviewer, wd: canEditWD ? String(getOffset(t)) : undefined};
+        const draft = fieldDrafts[t.id] || {deliverable:dName, preparer:dPreparer, reviewer:dReviewer, contact:dContact, wd: canEditWD ? String(getOffset(t)) : undefined};
         const wdField = canEditWD
           ? `<div class="field-edit-row">
                <input type="text" class="field-edit-input" data-fieldedit="${t.id}|wd" value="${esc(draft.wd)}" placeholder="WD number (e.g. -1, 0, +5, 10)">
@@ -1340,6 +1344,7 @@ function renderList(){
                 <input type="text" class="field-edit-input" data-fieldedit="${t.id}|reviewer" value="${esc(draft.reviewer)}" placeholder="Reviewer">
               </div>
               ${wdField}
+              <input type="text" class="field-edit-input" data-fieldedit="${t.id}|contact" value="${esc(draft.contact)}" placeholder="Contacts (e.g. Travis Duran, Brandon Smith) — leave blank to hide">
               ${errText}
               <div class="field-edit-actions">
                 <button class="field-save-btn" data-savefields="${t.id}">Save</button>
@@ -1352,7 +1357,7 @@ function renderList(){
       } else {
         cardTopBlock = `
           <div class="card-top">
-            <div class="card-title"><span class="${done?'strike':''}">${t.taskId?`<span class="taskid">${t.taskId}</span>`:''}${esc(dName)}</span> ${pin}${customTag}<button class="field-edit-btn" data-editfields="${t.id}" title="Edit name/assignment/WD">✎</button></div>
+            <div class="card-title"><span class="${done?'strike':''}">${t.taskId?`<span class="taskid">${t.taskId}</span>`:''}${esc(dName)}</span> ${pin}${customTag}<button class="field-edit-btn" data-editfields="${t.id}" title="Edit name/assignment/WD/contacts">✎</button></div>
             <div>${dateChips}</div>
           </div>`;
         metaBlock = `<div class="card-meta"><b>${esc(dPreparer)}</b> → <b>${esc(dReviewer)}</b> · ${t.cadence==='quarterly'?'Quarterly':'Monthly'}</div>`;
@@ -1365,7 +1370,7 @@ function renderList(){
             ${cardTopBlock}
             ${metaBlock}
             <div class="deadline-raw mono">${esc(dRaw)}${t.offsetQE!==undefined?' (adjusts on quarter-end months)':''}</div>
-            ${t.contact?`<div class="contact-line">Contacts: ${esc(t.contact)}</div>`:''}
+            ${dContact?`<div class="contact-line">Contacts: ${esc(dContact)}</div>`:''}
             ${notesBlock}
             ${refsBlock}
           </div>
@@ -1391,6 +1396,7 @@ function renderList(){
         deliverable:getField(task,'deliverable'),
         preparer:getField(task,'preparer'),
         reviewer:getField(task,'reviewer'),
+        contact:getField(task,'contact'),
         wd: canEditWD ? String(getOffset(task)) : undefined
       };
       render();
@@ -1421,6 +1427,7 @@ function renderList(){
         deliverable: nameVal || getField(task,'deliverable'),
         preparer: (draft.preparer||'').trim(),
         reviewer: (draft.reviewer||'').trim() || '—',
+        contact: (draft.contact||'').trim(),
       };
       if(draft.wd !== undefined){
         const wdRaw = String(draft.wd).trim();
