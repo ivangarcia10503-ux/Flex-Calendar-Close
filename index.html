@@ -654,14 +654,25 @@ await saveSharedState({
 onSnapshot(
   doc(db, "shared", "appState"),
   (snapshot) => {
+
     sharedState = snapshot.data() || {};
 
     console.log(
       "Realtime Update:",
       sharedState
     );
+
   }
 );
+
+window.saveTestValue = async function() {
+
+  await saveSharedState({
+    exampleValue: Math.random()
+  });
+
+};
+
 
 
 
@@ -1427,12 +1438,6 @@ async function saveCompletedForMonth(){
     pSet('close-completed:'+monthKey(), JSON.stringify(ids)),
     registerMonthInIndex()
   ]);
-
-await saveSharedState({
-  completed: completed
-});
-
-
 }
 
 async function toggleComplete(taskUid){
