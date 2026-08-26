@@ -635,7 +635,7 @@ async function loadSharedState() {
 }
 
 
-
+let sharedState = {};
 
 
 const testDoc = await getDoc(
@@ -654,15 +654,24 @@ await saveSharedState({
 onSnapshot(
   doc(db, "shared", "appState"),
   (snapshot) => {
+
+    sharedState = snapshot.data() || {};
+
     console.log(
       "Realtime Update:",
-      snapshot.data()
+      sharedState
     );
+
   }
 );
 
+window.saveTestValue = async function() {
 
+  await saveSharedState({
+    exampleValue: Math.random()
+  });
 
+};
 
 
 
