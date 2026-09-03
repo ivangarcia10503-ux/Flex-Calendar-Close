@@ -630,6 +630,17 @@ let sharedState = {};
    FIRESTORE HELPERS
 =================================== */
 
+async function saveHiddenTasksState() {
+
+  await setDoc(
+    doc(db, "shared", "hiddenTasksState"),
+    {
+      hiddenTasks: [...hiddenTasks],
+      updatedAt: new Date().toISOString()
+    }
+  );
+}
+
 async function saveSharedState(data) {
   await setDoc(
     doc(db, "shared", "appState"),
@@ -686,11 +697,6 @@ async function writeSyncTest() {
   );
 }
 
-
-
-
-
-
   
 /* ===================================
    FIRESTORE LISTENERS
@@ -699,7 +705,6 @@ async function writeSyncTest() {
 const testDoc = await getDoc(
   doc(db, "shared", "appState")
 );
-
 console.log(
   "Firebase Connected:",
   testDoc.data()
@@ -712,17 +717,27 @@ await saveSharedState({
 onSnapshot(
   doc(db, "shared", "appState"),
   (snapshot) => {
-
     sharedState = snapshot.data() || {};
-
     console.log(
       "Realtime Update:",
       sharedState
+    ); });
+
+onSnapshot(
+  doc(db, "shared", "hiddenTasksState"),
+  (snapshot) => {
+    const data = snapshot.data();
+    if (!data) return;
+    hiddenTasks = new Set(
+      data.hiddenTasks || []
     );
+    render();
+    console.log(
+      "Hidden Tasks Updated",
+      hiddenTasks
+    );  });
 
-  }
-);
-
+  
 onSnapshot(
   doc(db, "shared", "customTasksState"),
   (snapshot) => {
@@ -733,10 +748,7 @@ onSnapshot(
     console.log(
       "Custom Tasks Updated",
       customTasks
-    );
-
-  }
-);
+    ); });
   
 
 onSnapshot(
@@ -745,9 +757,7 @@ onSnapshot(
     console.log(
       "Sync Test Update:",
       snapshot.data()
-    );
-  }
-);
+    );  });
 
 onSnapshot(
   doc(db, "shared", "completedState"),
@@ -759,29 +769,19 @@ onSnapshot(
     console.log(
       "Completed State Updated",
       completed
-    );
-  }
-);
+    );  });
 
 onSnapshot(
   doc(db, "shared", "notesState"),
   (snapshot) => {
-
     const data = snapshot.data();
-
     if (!data) return;
-
     notesList = data.notesList || [];
-
     render();
-
     console.log(
       "Notes State Updated",
       notesList
-    );
-
-  }
-);
+    );  });
 
 
 
@@ -1461,6 +1461,7 @@ async function loadHiddenTasks(){
 }
 async function saveHiddenTasks(){
   await pSet('close-hidden-tasks-v1', JSON.stringify([...hiddenTasks]));
+  await saveHiddenTasksState();
 }
 async function hideTask(id){
   hiddenTasks.add(id);
