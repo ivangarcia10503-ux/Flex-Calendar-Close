@@ -1247,7 +1247,6 @@ async function loadSubtasks(){
 }
 async function saveSubtasksMap(){
   await pSet('close-subtasks-v1', JSON.stringify(subtasksMap));
-  await saveSubtasksState();
   await saveCalendarState();
 }
 async function loadSubCompletedForMonth(){
@@ -1396,7 +1395,6 @@ async function loadFieldOverrides(){
 }
 async function saveFieldOverrides(){
   await pSet('close-taskfields-v1', JSON.stringify(fieldOverrides));
-  await saveFieldOverridesState();
   await saveCalendarState();
 }
 function getField(task, key){
@@ -1431,7 +1429,6 @@ async function loadReferences(){
 }
 async function saveReferences(){
   await pSet('close-references-v1', JSON.stringify(referencesMap));
-  await saveReferencesState();
   await saveCalendarState();
 }
 
@@ -1521,7 +1518,6 @@ async function loadCustomTasks(){
 }
 async function saveCustomTasks(){
   await pSet('close-custom-tasks-v1', JSON.stringify(customTasks));
-  await saveCustomTasksState();
   await saveCalendarState();
 }
 async function addCustomTask(task){
@@ -1560,7 +1556,6 @@ async function loadHiddenTasks(){
 }
 async function saveHiddenTasks(){
   await pSet('close-hidden-tasks-v1', JSON.stringify([...hiddenTasks]));
-  await saveHiddenTasksState();
   await saveCalendarState(); 
 }
 async function hideTask(id){
@@ -1608,7 +1603,6 @@ async function saveNotesForMonth(){
     JSON.stringify(notesList)
   );
   await registerMonthInIndex();
-  await saveNotesState();
   await saveCalendarState();
 }
 
@@ -1673,7 +1667,6 @@ async function saveCompletedForMonth(){
     registerMonthInIndex()
   ]);
 
-  await saveCompletedState();
   await saveCalendarState();
 }
 
