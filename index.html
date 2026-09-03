@@ -1500,10 +1500,14 @@ async function registerMonthInIndex(){
     await pSet('close-months-index', JSON.stringify([...monthsIndex]));
   }
 }
-
+  
 async function saveNotesForMonth(){
-  await pSet(notesKey(), JSON.stringify(notesList));
+  await pSet(
+    notesKey(),
+    JSON.stringify(notesList)
+  );
   await registerMonthInIndex();
+  await saveNotesState();
 }
 
 function findTaskByUid(uid){
