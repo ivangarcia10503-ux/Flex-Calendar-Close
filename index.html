@@ -614,180 +614,169 @@ import {
 } from
 'https://www.gstatic.com/firebasejs/12.2.1/firebase-firestore.js';
 
-const firebaseConfig = {
-  apiKey: "AIzaSyDeXUmWLfcKqGrW-zxLH11KnZUhCU9HQSE",
-  authDomain: "us-flex-calendar-close.firebaseapp.com",
-  projectId: "us-flex-calendar-close",
-  storageBucket: "us-flex-calendar-close.firebasestorage.app",
-  messagingSenderId: "529420946982",
-  appId: "1:529420946982:web:f62a168bb9ef89f91b20e7"
+
+
+
+
+
+
+
+
+  
+/**==================================*===================
+   FIREBASE CO*FIGURATION
+=======================*============================== */
+*const firebaseConfig = {
+  apiKey:*"AIzaSyDeXUmWLfcKqGrW-zxLH11KnZUhC*9HQSE",
+  authDomain: "us-flex-cal*ndar-close.firebaseapp.com",
+  pro*ectId: "us-flex-calendar-close",
+ *storageBucket: "us-flex-calendar-c*ose.firebasestorage.app",
+  messag*ngSenderId: "529420946982",
+  appI*: "1:529420946982:web:f62a168bb9ef*9f91b20e7"
 };
 
-const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
+const app = initial*zeApp(firebaseConfig);
+const db = *etFirestore(app);
 
-async function saveSharedState(data) {
+let sharedState*= {};
+
+/* ========================*=============================
+   F*RESTORE HELPERS
+==================*==================================* */
+
+async function saveSharedStat*(data) {
   await setDoc(
-    doc(db, "shared", "appState"),
-    data,
-    { merge: true }
+    doc(d*, "shared", "appState"),
+    data,*    { merge: true }
   );
 }
 
-async function loadSharedState() {
-  const snap = await getDoc(
-    doc(db, "shared", "appState")
+async *unction loadSharedState() {
+  cons* snap = await getDoc(
+    doc(db, *shared", "appState")
   );
 
-  if (!snap.exists()) return {};
+  if (!*nap.exists()) return {};
 
-  return snap.data();
+  return*snap.data();
 }
 
+async function sav*CompletedState() {
 
-let sharedState = {};
+  await setDoc*
+    doc(db, "shared", "completedS*ate"),
+    {
+      completed,
+    * updatedAt: new Date().toISOString*)
+    }
+  );
 
+}
 
-const testDoc = await getDoc(
-  doc(db, "shared", "appState")
+async function sa*eNotesState() {
+
+  await setDoc(
+ *  doc(db, "shared", "notesState"),*    {
+      notesList,
+      updat*dAt: new Date().toISOString()
+    *
+  );
+
+}
+
+async function writeSync*est() {
+
+  await setDoc(
+    doc(d*, "shared", "syncTest"),
+    {
+   *  updatedAt: new Date().toISOStrin*()
+    }
+  );
+
+}
+
+/* =============*==================================*=====
+   FIRESTORE LISTENERS
+=====*==================================*============= */
+
+const testDoc = *wait getDoc(
+  doc(db, "shared", "*ppState")
 );
 
 console.log(
-  "Firebase Connected:",
+  "Fire*ase Connected:",
   testDoc.data()
-);
+*;
 
 await saveSharedState({
-  lastConnected: new Date().toISOString()
-});
+  lastC*nnected: new Date().toISOString()
+*);
 
 onSnapshot(
-  doc(db, "shared", "appState"),
+  doc(db, "shared"* "appState"),
   (snapshot) => {
 
-    sharedState = snapshot.data() || {};
+ *  sharedState = snapshot.data() ||*{};
 
     console.log(
-      "Realtime Update:",
+      "Realt*me Update:",
       sharedState
-    );
+   *);
+
   }
 );
 
-
-
-
-
-
-
-  onSnapshot(
-  doc(db, "shared", "syncTest"),
-  (snapshot) => {
-
-    console.log(
-      "Sync Test Update:",
-      snapshot.data()
-    );
-  }
-);
-
-
-
-
-
-  
 onSnapshot(
-  doc(db, "shared", "completedState"),
-  (snapshot) => {
+  doc(db, *shared", "syncTest"),
+  (snapshot)*=> {
 
-    const data = snapshot.data();
-
-    if (!data) return;
-
-    completed = data.completed || {};
-    render();
     console.log(
-      "Completed State Updated",
+      "Sync*Test Update:",
+      snapshot.data*)
+    );
+
+  }
+);
+
+onSnapshot(
+  do*(db, "shared", "completedState"),
+* (snapshot) => {
+
+    const data =*snapshot.data();
+
+    if (!data) r*turn;
+
+    completed = data.comple*ed || {};
+
+    render();
+
+    cons*le.log(
+      "Completed State Upd*ted",
       completed
     );
+
   }
-);
+*;
 
 onSnapshot(
-  doc(db, "shared", "notesState"),
+  doc(db, "shared",*"notesState"),
   (snapshot) => {
 
-    const data = snapshot.data();
+*   const data = snapshot.data();
 
-    if (!data) return;
+*   if (!data) return;
 
-    notesList = data.notesList || [];
+    notesLi*t = data.notesList || [];
 
-    renderNotesPanel();
+    ren*erNotesPanel();
 
     console.log(
-      "Notes State Updated",
-      notesList
+*     "Notes State Updated",
+      *otesList
     );
 
   }
 );
-
-
-  
-async function writeSyncTest() {
-  await setDoc(
-    doc(db, "shared", "syncTest"),
-    {
-      updatedAt: new Date().toISOString()
-    }
-  );
-}
-async function saveCompletedState() {
-  await setDoc(
-    doc(db, "shared", "completedState"),
-    {
-      completed: completed,
-      updatedAt: new Date().toISOString()
-    }
-  );
-}
-
-  
-async function saveNotesState() {
-
-  await setDoc(
-    doc(db, "shared", "notesState"),
-    {
-      notesList: notesList,
-      updatedAt: new Date().toISOString()
-    }
-  );
-
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-  
-
-/* ---------------- Business day engine ---------------- */
-
-
-
-
 
 
 
