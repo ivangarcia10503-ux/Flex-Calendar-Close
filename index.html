@@ -1121,7 +1121,7 @@ async function loadSubCompletedForMonth(){
 }
 async function saveSubCompletedForMonth(){
   await pSet('close-subcompleted:'+monthKey(), JSON.stringify(Object.keys(subCompleted)));
-  await saveSubCompletedState();
+  await saveCalendarState();
 }
 function isSubDone(parentId, subId){ return !!subCompleted[subEid(parentId, subId)]; }
 
