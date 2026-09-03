@@ -631,41 +631,45 @@ let sharedState = {};
 
 
 
-
-
   
 /* ===================================
    FIRESTORE HELPERS
 =================================== */
 
-async function saveHiddenTasksState() {
+async function saveCalendarState() {
+  await setDoc(
+    doc(db, "shared", "calendarState"),
+    {
+      completed,
+      notesList,
+      customTasks,
+      hiddenTasks: [...hiddenTasks],
+      fieldOverrides,
+      referencesMap,
+      subtasksMap,
+      subCompleted,
+      updatedAt: new Date().toISOString()   }  );}
 
+  
+async function saveHiddenTasksState() {
   await setDoc(
     doc(db, "shared", "hiddenTasksState"),
     {
       hiddenTasks: [...hiddenTasks],
-      updatedAt: new Date().toISOString()
-    }
-  );
-}
+      updatedAt: new Date().toISOString()    }  );}
 
 async function saveSharedState(data) {
   await setDoc(
     doc(db, "shared", "appState"),
     data,
-    { merge: true }
-  );
-}
+    { merge: true }  );}
 
 async function loadSharedState() {
   const snap = await getDoc(
     doc(db, "shared", "appState")
   );
-
   if (!snap.exists()) return {};
-
-  return snap.data();
-}
+  return snap.data();}
   
 
 async function saveCompletedState() {
@@ -678,52 +682,39 @@ async function saveCompletedState() {
 async function saveNotesState() {
   await setDoc(
     doc(db, "shared", "notesState"),
-    {
-      notesList,
-      updatedAt: new Date().toISOString()  } );}
+    {  notesList,  updatedAt: new Date().toISOString()  } );}
 
 async function saveCustomTasksState() {
   await setDoc(
     doc(db, "shared", "customTasksState"),
-    {
-      customTasks,
-      updatedAt: new Date().toISOString()  }  );} 
+    {   customTasks,  updatedAt: new Date().toISOString()  }  );} 
   
 async function writeSyncTest() {
   await setDoc(
     doc(db, "shared", "syncTest"),
-    {
-      updatedAt: new Date().toISOString()   } );}
+    {   updatedAt: new Date().toISOString()   } );}
   
 
 async function saveFieldOverridesState() {
   await setDoc(
     doc(db, "shared", "fieldOverridesState"),
-    {
-      fieldOverrides,
-      updatedAt: new Date().toISOString() } );}
+    {   fieldOverrides,  updatedAt: new Date().toISOString() } );}
 
   async function saveReferencesState() {
   await setDoc(
     doc(db, "shared", "referencesState"),
-    {
-      referencesMap,
-      updatedAt: new Date().toISOString()  }  );}
+    {    referencesMap,  updatedAt: new Date().toISOString()  }  );}
 
 
 async function saveSubtasksState() {
   await setDoc(
     doc(db, "shared", "subtasksState"),
-    {
-      subtasksMap,
-      updatedAt: new Date().toISOString() }  );}
+    {   subtasksMap,   updatedAt: new Date().toISOString() }  );}
 
 async function saveSubCompletedState() {
   await setDoc(
     doc(db, "shared", "subCompletedState"),
-    {
-      subCompleted,
-      updatedAt: new Date().toISOString() } );}
+    {   subCompleted,  updatedAt: new Date().toISOString() } );}
 
 
 
@@ -861,6 +852,34 @@ onSnapshot(
       subCompleted   );  });
 
 
+onSnapshot(
+  doc(db, "shared", "calendarState"),
+  (snapshot) => {
+    const data = snapshot.data();
+    if (!data) return;
+    completed = data.completed || {};
+    notesList = data.notesList || [];
+    customTasks = data.customTasks || [];
+    hiddenTasks = new Set(
+      data.hiddenTasks || []
+    );
+    fieldOverrides = data.fieldOverrides || {};
+    referencesMap = data.referencesMap || {};
+    subtasksMap = data.subtasksMap || {};
+    subCompleted = data.subCompleted || {};
+    render();
+    console.log(
+      "Calendar State Updated"   );  });
+
+
+
+
+
+
+
+
+
+  
 
 /* ---------------- Business day engine ---------------- */
 
@@ -1229,6 +1248,7 @@ async function loadSubtasks(){
 async function saveSubtasksMap(){
   await pSet('close-subtasks-v1', JSON.stringify(subtasksMap));
   await saveSubtasksState();
+  await saveCalendarState();
 }
 async function loadSubCompletedForMonth(){
   subCompleted = {};
@@ -1239,6 +1259,7 @@ async function loadSubCompletedForMonth(){
 }
 async function saveSubCompletedForMonth(){
   await pSet('close-subcompleted:'+monthKey(), JSON.stringify(Object.keys(subCompleted)));
+  await saveSubCompletedState();
   await saveSubCompletedState();
 }
 function isSubDone(parentId, subId){ return !!subCompleted[subEid(parentId, subId)]; }
@@ -1376,6 +1397,7 @@ async function loadFieldOverrides(){
 async function saveFieldOverrides(){
   await pSet('close-taskfields-v1', JSON.stringify(fieldOverrides));
   await saveFieldOverridesState();
+  await saveCalendarState();
 }
 function getField(task, key){
   // Any explicit override wins, including an empty string — that's what lets someone
@@ -1410,6 +1432,7 @@ async function loadReferences(){
 async function saveReferences(){
   await pSet('close-references-v1', JSON.stringify(referencesMap));
   await saveReferencesState();
+  await saveCalendarState();
 }
 
 // Uploaded file storage — this always goes through IndexedDB directly (not the pGet/pSet
@@ -1499,6 +1522,7 @@ async function loadCustomTasks(){
 async function saveCustomTasks(){
   await pSet('close-custom-tasks-v1', JSON.stringify(customTasks));
   await saveCustomTasksState();
+  await saveCalendarState();
 }
 async function addCustomTask(task){
   customTasks.push(task);
@@ -1537,6 +1561,7 @@ async function loadHiddenTasks(){
 async function saveHiddenTasks(){
   await pSet('close-hidden-tasks-v1', JSON.stringify([...hiddenTasks]));
   await saveHiddenTasksState();
+  await saveCalendarState(); 
 }
 async function hideTask(id){
   hiddenTasks.add(id);
@@ -1584,6 +1609,7 @@ async function saveNotesForMonth(){
   );
   await registerMonthInIndex();
   await saveNotesState();
+  await saveCalendarState();
 }
 
 function findTaskByUid(uid){
@@ -1648,6 +1674,7 @@ async function saveCompletedForMonth(){
   ]);
 
   await saveCompletedState();
+  await saveCalendarState();
 }
 
 
