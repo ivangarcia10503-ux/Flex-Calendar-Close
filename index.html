@@ -514,6 +514,16 @@ footer{margin-top:30px; text-align:center; font-size:0.72rem; color:var(--ink-so
   <div class="addtask-bar">
     <div class="hidden-toggle" id="hiddenToggle"></div>
     <button class="addtask-btn" id="addTaskBtn">+ New checkbox</button>
+
+<button class="addtask-btn" id="firebaseTestBtn">
+  Firebase Test
+</button>
+
+
+
+
+
+
   </div>
   <div class="hidden-panel" id="hiddenPanel" style="display:none;"></div>
   <div class="addtask-form" id="addTaskForm" style="display:none;">
@@ -665,13 +675,29 @@ onSnapshot(
   }
 );
 
-window.saveTestValue = async function() {
+async function writeSyncTest() {
 
-  await saveSharedState({
-    exampleValue: Math.random()
-  });
+  await setDoc(
+    doc(db, "shared", "syncTest"),
+    {
+      updatedAt: new Date().toISOString()
+    }
+  );
 
-};
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1431,14 +1457,32 @@ async function loadCompletedForMonth(){
   ids.forEach(id=>{ completed[storeKey(id)] = true; });
 }
 
+
+
+
+
 async function saveCompletedForMonth(){
   const prefix = 'close:'+monthKey()+':';
-  const ids = Object.keys(completed).filter(k=>k.startsWith(prefix)).map(k=>k.slice(prefix.length));
+
+  const ids = Object.keys(completed)
+    .filter(k=>k.startsWith(prefix))
+    .map(k=>k.slice(prefix.length));
+
   await Promise.all([
     pSet('close-completed:'+monthKey(), JSON.stringify(ids)),
     registerMonthInIndex()
   ]);
 }
+
+
+
+
+
+
+
+
+
+
 
 async function toggleComplete(taskUid){
   const key = storeKey(taskUid);
@@ -2104,6 +2148,23 @@ document.getElementById('todayLink').addEventListener('click', async ()=>{
   curYear = today.getFullYear(); curMonth = today.getMonth();
   await refreshAll();
 });
+
+document.getElementById('firebaseTestBtn')
+  .addEventListener('click', async () => {
+
+    await writeSyncTest();
+
+    console.log(
+      'Firebase Test Saved'
+    );
+
+  });
+
+
+
+
+
+
 document.getElementById('tabFlex').addEventListener('click', ()=>{ activeTab='flex'; clearAddTaskForm(); render(); });
 document.getElementById('tabDiv').addEventListener('click', ()=>{ activeTab='div'; clearAddTaskForm(); render(); });
 document.getElementById('hiddenToggle').addEventListener('click', ()=>{ hiddenPanelOpen = !hiddenPanelOpen; renderHiddenBar(); });
