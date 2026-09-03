@@ -595,24 +595,9 @@ footer{margin-top:30px; text-align:center; font-size:0.72rem; color:var(--ink-so
 <script type="module">
 
 
-
-
-
-
-
-
-
-import { initializeApp } from
-'https://www.gstatic.com/firebasejs/12.2.1/firebase-app.js';
-
-import {
-  getFirestore,
-  doc,
-  getDoc,
-  setDoc,
-  onSnapshot
-} from
-'https://www.gstatic.com/firebasejs/12.2.1/firebase-firestore.js';
+/* ===================================
+   FIREBASE CONFIGURATION
+=================================== */
 
 const firebaseConfig = {
   apiKey: "AIzaSyDeXUmWLfcKqGrW-zxLH11KnZUhCU9HQSE",
@@ -625,6 +610,12 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
+
+let sharedState = {};
+
+/* ===================================
+   FIRESTORE HELPERS
+=================================== */
 
 async function saveSharedState(data) {
   await setDoc(
@@ -644,9 +635,38 @@ async function loadSharedState() {
   return snap.data();
 }
 
+async function saveCompletedState() {
+  await setDoc(
+    doc(db, "shared", "completedState"),
+    {
+      completed,
+      updatedAt: new Date().toISOString()
+    }
+  );
+}
 
-let sharedState = {};
+async function saveNotesState() {
+  await setDoc(
+    doc(db, "shared", "notesState"),
+    {
+      notesList,
+      updatedAt: new Date().toISOString()
+    }
+  );
+}
 
+async function writeSyncTest() {
+  await setDoc(
+    doc(db, "shared", "syncTest"),
+    {
+      updatedAt: new Date().toISOString()
+    }
+  );
+}
+
+/* ===================================
+   FIRESTORE LISTENERS
+=================================== */
 
 const testDoc = await getDoc(
   doc(db, "shared", "appState")
@@ -671,16 +691,11 @@ onSnapshot(
       "Realtime Update:",
       sharedState
     );
+
   }
 );
 
-
-
-
-
-
-
-  onSnapshot(
+onSnapshot(
   doc(db, "shared", "syncTest"),
   (snapshot) => {
 
@@ -688,8 +703,10 @@ onSnapshot(
       "Sync Test Update:",
       snapshot.data()
     );
+
   }
 );
+
 onSnapshot(
   doc(db, "shared", "completedState"),
   (snapshot) => {
@@ -699,7 +716,9 @@ onSnapshot(
     if (!data) return;
 
     completed = data.completed || {};
+
     render();
+
     console.log(
       "Completed State Updated",
       completed
@@ -707,32 +726,26 @@ onSnapshot(
 
   }
 );
-async function writeSyncTest() {
-  await setDoc(
-    doc(db, "shared", "syncTest"),
-    {
-      updatedAt: new Date().toISOString()
-    }
-  );
-}
-async function saveCompletedState() {
-  await setDoc(
-    doc(db, "shared", "completedState"),
-    {
-      completed: completed,
-      updatedAt: new Date().toISOString()
-    }
-  );
 
-}
+onSnapshot(
+  doc(db, "shared", "notesState"),
+  (snapshot) => {
 
-/* ---------------- Business day engine ---------------- */
+    const data = snapshot.data();
 
+    if (!data) return;
 
+    notesList = data.notesList || [];
 
+    renderNotesPanel();
 
+    console.log(
+      "Notes State Updated",
+      notesList
+    );
 
-
+  }
+);
 
 
 
