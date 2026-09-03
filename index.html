@@ -668,6 +668,15 @@ async function saveNotesState() {
   );
 }
 
+async function saveCustomTasksState() {
+  await setDoc(
+    doc(db, "shared", "customTasksState"),
+    {
+      customTasks,
+      updatedAt: new Date().toISOString()
+    }
+  );
+} 
 async function writeSyncTest() {
   await setDoc(
     doc(db, "shared", "syncTest"),
@@ -677,6 +686,12 @@ async function writeSyncTest() {
   );
 }
 
+
+
+
+
+
+  
 /* ===================================
    FIRESTORE LISTENERS
 =================================== */
@@ -709,34 +724,42 @@ onSnapshot(
 );
 
 onSnapshot(
+  doc(db, "shared", "customTasksState"),
+  (snapshot) => {
+    const data = snapshot.data();
+    if (!data) return;
+    customTasks = data.customTasks || [];
+    render();
+    console.log(
+      "Custom Tasks Updated",
+      customTasks
+    );
+
+  }
+);
+  
+
+onSnapshot(
   doc(db, "shared", "syncTest"),
   (snapshot) => {
-
     console.log(
       "Sync Test Update:",
       snapshot.data()
     );
-
   }
 );
 
 onSnapshot(
   doc(db, "shared", "completedState"),
   (snapshot) => {
-
     const data = snapshot.data();
-
     if (!data) return;
-
     completed = data.completed || {};
-
     render();
-
     console.log(
       "Completed State Updated",
       completed
     );
-
   }
 );
 
@@ -1400,6 +1423,7 @@ async function loadCustomTasks(){
 }
 async function saveCustomTasks(){
   await pSet('close-custom-tasks-v1', JSON.stringify(customTasks));
+  await saveCustomTasksState();
 }
 async function addCustomTask(task){
   customTasks.push(task);
