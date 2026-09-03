@@ -626,6 +626,14 @@ const db = getFirestore(app);
 
 let sharedState = {};
 
+
+
+
+
+
+
+
+  
 /* ===================================
    FIRESTORE HELPERS
 =================================== */
@@ -658,45 +666,51 @@ async function loadSharedState() {
 
   return snap.data();
 }
+  
 
 async function saveCompletedState() {
   await setDoc(
     doc(db, "shared", "completedState"),
     {
       completed,
-      updatedAt: new Date().toISOString()
-    }
-  );
-}
+      updatedAt: new Date().toISOString()  }  );}
 
 async function saveNotesState() {
   await setDoc(
     doc(db, "shared", "notesState"),
     {
       notesList,
-      updatedAt: new Date().toISOString()
-    }
-  );
-}
+      updatedAt: new Date().toISOString()  } );}
 
 async function saveCustomTasksState() {
   await setDoc(
     doc(db, "shared", "customTasksState"),
     {
       customTasks,
-      updatedAt: new Date().toISOString()
-    }
-  );
-} 
+      updatedAt: new Date().toISOString()  }  );} 
+  
 async function writeSyncTest() {
   await setDoc(
     doc(db, "shared", "syncTest"),
     {
-      updatedAt: new Date().toISOString()
-    }
-  );
-}
+      updatedAt: new Date().toISOString()   } );}
+  
 
+async function saveFieldOverridesState() {
+  await setDoc(
+    doc(db, "shared", "fieldOverridesState"),
+    {
+      fieldOverrides,
+      updatedAt: new Date().toISOString() } );}
+
+
+
+
+
+
+
+
+  
   
 /* ===================================
    FIRESTORE LISTENERS
@@ -783,7 +797,16 @@ onSnapshot(
       notesList
     );  });
 
-
+onSnapshot(
+  doc(db, "shared", "fieldOverridesState"),
+  (snapshot) => {
+    const data = snapshot.data();
+    if (!data) return;
+    fieldOverrides = data.fieldOverrides || {};
+    render();
+    console.log(
+      "Field Overrides Updated",
+      fieldOverrides );  });
 
 
 
@@ -1302,6 +1325,7 @@ async function loadFieldOverrides(){
 }
 async function saveFieldOverrides(){
   await pSet('close-taskfields-v1', JSON.stringify(fieldOverrides));
+  await saveFieldOverridesState();
 }
 function getField(task, key){
   // Any explicit override wins, including an empty string — that's what lets someone
