@@ -671,9 +671,20 @@ onSnapshot(
       "Realtime Update:",
       sharedState
     );
-
   }
 );
+
+onSnapshot(
+  doc(db, "shared", "syncTest"),
+  (snapshot) => {
+
+    console.log(
+      "Sync Test Update:",
+      snapshot.data()
+    );
+  }
+);
+  
 
 async function writeSyncTest() {
 
@@ -704,6 +715,11 @@ async function writeSyncTest() {
 
 
 /* ---------------- Business day engine ---------------- */
+
+
+
+
+  
 function isWeekend(d){ const w=d.getDay(); return w===0||w===6; }
 function lastBizDayOfMonth(year, monthIdx){
   let d = new Date(year, monthIdx+1, 0);
