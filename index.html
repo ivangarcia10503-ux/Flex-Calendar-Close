@@ -684,7 +684,8 @@ onSnapshot(
     );
   }
 );
-  
+
+
 
 async function writeSyncTest() {
 
@@ -694,9 +695,18 @@ async function writeSyncTest() {
       updatedAt: new Date().toISOString()
     }
   );
-
 }
 
+async function saveCompletedState() {
+
+  await setDoc(
+    doc(db, "shared", "completedState"),
+    {
+      completed: completed,
+      updatedAt: new Date().toISOString()
+    }
+  );
+}
 
 
 
@@ -1488,6 +1498,8 @@ async function saveCompletedForMonth(){
     pSet('close-completed:'+monthKey(), JSON.stringify(ids)),
     registerMonthInIndex()
   ]);
+
+  await saveCompletedState();
 }
 
 
