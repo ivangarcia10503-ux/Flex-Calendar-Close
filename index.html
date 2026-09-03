@@ -674,7 +674,13 @@ onSnapshot(
   }
 );
 
-onSnapshot(
+
+
+
+
+
+
+  onSnapshot(
   doc(db, "shared", "syncTest"),
   (snapshot) => {
 
@@ -684,11 +690,24 @@ onSnapshot(
     );
   }
 );
+onSnapshot(
+  doc(db, "shared", "completedState"),
+  (snapshot) => {
 
+    const data = snapshot.data();
 
+    if (!data) return;
 
+    completed = data.completed || {};
+    render();
+    console.log(
+      "Completed State Updated",
+      completed
+    );
+
+  }
+);
 async function writeSyncTest() {
-
   await setDoc(
     doc(db, "shared", "syncTest"),
     {
@@ -696,9 +715,7 @@ async function writeSyncTest() {
     }
   );
 }
-
 async function saveCompletedState() {
-
   await setDoc(
     doc(db, "shared", "completedState"),
     {
@@ -706,9 +723,10 @@ async function saveCompletedState() {
       updatedAt: new Date().toISOString()
     }
   );
+
 }
 
-
+/* ---------------- Business day engine ---------------- */
 
 
 
