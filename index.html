@@ -711,7 +711,19 @@ async function saveFieldOverridesState() {
       updatedAt: new Date().toISOString()  }  );}
 
 
+async function saveSubtasksState() {
+  await setDoc(
+    doc(db, "shared", "subtasksState"),
+    {
+      subtasksMap,
+      updatedAt: new Date().toISOString() }  );}
 
+async function saveSubCompletedState() {
+  await setDoc(
+    doc(db, "shared", "subCompletedState"),
+    {
+      subCompleted,
+      updatedAt: new Date().toISOString() } );}
 
 
 
@@ -826,7 +838,27 @@ onSnapshot(
       "References Updated",
       referencesMap   );  });
 
+onSnapshot(
+  doc(db, "shared", "subtasksState"),
+  (snapshot) => {
+    const data = snapshot.data();
+    if (!data) return;
+    subtasksMap = data.subtasksMap || {};
+    render();
+    console.log(
+      "Subtasks Updated",
+      subtasksMap  );  });
 
+onSnapshot(
+  doc(db, "shared", "subCompletedState"),
+  (snapshot) => {
+    const data = snapshot.data();
+    if (!data) return;
+    subCompleted = data.subCompleted || {};
+    render();
+    console.log(
+      "Subtask Completion Updated",
+      subCompleted   );  });
 
 
 
@@ -1196,6 +1228,7 @@ async function loadSubtasks(){
 }
 async function saveSubtasksMap(){
   await pSet('close-subtasks-v1', JSON.stringify(subtasksMap));
+  await saveSubtasksState();
 }
 async function loadSubCompletedForMonth(){
   subCompleted = {};
@@ -1206,6 +1239,7 @@ async function loadSubCompletedForMonth(){
 }
 async function saveSubCompletedForMonth(){
   await pSet('close-subcompleted:'+monthKey(), JSON.stringify(Object.keys(subCompleted)));
+  await saveSubCompletedState();
 }
 function isSubDone(parentId, subId){ return !!subCompleted[subEid(parentId, subId)]; }
 
