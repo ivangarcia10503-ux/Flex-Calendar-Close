@@ -690,12 +690,6 @@ onSnapshot(
     );
   }
 );
-
-
-
-
-
-  
 onSnapshot(
   doc(db, "shared", "completedState"),
   (snapshot) => {
@@ -710,31 +704,9 @@ onSnapshot(
       "Completed State Updated",
       completed
     );
-  }
-);
-
-onSnapshot(
-  doc(db, "shared", "notesState"),
-  (snapshot) => {
-
-    const data = snapshot.data();
-
-    if (!data) return;
-
-    notesList = data.notesList || [];
-
-    renderNotesPanel();
-
-    console.log(
-      "Notes State Updated",
-      notesList
-    );
 
   }
 );
-
-
-  
 async function writeSyncTest() {
   await setDoc(
     doc(db, "shared", "syncTest"),
@@ -751,37 +723,8 @@ async function saveCompletedState() {
       updatedAt: new Date().toISOString()
     }
   );
-}
-
-  
-async function saveNotesState() {
-
-  await setDoc(
-    doc(db, "shared", "notesState"),
-    {
-      notesList: notesList,
-      updatedAt: new Date().toISOString()
-    }
-  );
 
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-  
 
 /* ---------------- Business day engine ---------------- */
 
@@ -1511,7 +1454,6 @@ async function registerMonthInIndex(){
 async function saveNotesForMonth(){
   await pSet(notesKey(), JSON.stringify(notesList));
   await registerMonthInIndex();
-  await saveNotesState();
 }
 
 function findTaskByUid(uid){
