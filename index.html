@@ -703,6 +703,13 @@ async function saveFieldOverridesState() {
       fieldOverrides,
       updatedAt: new Date().toISOString() } );}
 
+  async function saveReferencesState() {
+  await setDoc(
+    doc(db, "shared", "referencesState"),
+    {
+      referencesMap,
+      updatedAt: new Date().toISOString()  }  );}
+
 
 
 
@@ -808,7 +815,16 @@ onSnapshot(
       "Field Overrides Updated",
       fieldOverrides );  });
 
-
+onSnapshot(
+  doc(db, "shared", "referencesState"),
+  (snapshot) => {
+    const data = snapshot.data();
+    if (!data) return;
+    referencesMap = data.referencesMap || {};
+    render();
+    console.log(
+      "References Updated",
+      referencesMap   );  });
 
 
 
@@ -1359,6 +1375,7 @@ async function loadReferences(){
 }
 async function saveReferences(){
   await pSet('close-references-v1', JSON.stringify(referencesMap));
+  await saveReferencesState();
 }
 
 // Uploaded file storage — this always goes through IndexedDB directly (not the pGet/pSet
