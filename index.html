@@ -611,6 +611,25 @@ import {
 } from
 'https://www.gstatic.com/firebasejs/12.2.1/firebase-firestore.js';
 
+import {
+  getFirestore,
+  doc,
+  getDoc,
+  setDoc,
+  onSnapshot,
+  collection,
+  addDoc,
+  query,
+  orderBy,
+  limit,
+  serverTimestamp
+} from
+'https://www.gstatic.com/firebasejs/12.2.1/firebase-firestore.js';
+
+
+
+
+
   
 const firebaseConfig = {
   apiKey: "AIzaSyDeXUmWLfcKqGrW-zxLH11KnZUhCU9HQSE",
@@ -674,9 +693,34 @@ async function writeSyncTest() {
   
 
 
+async function addHistoryEntry({
+  action,
+  itemType,
+  itemId,
+  itemName,
+  details = ""}) {
+  const user = getCurrentHistoryUser();
+  await addDoc(
+    collection(
+      db,
+      "shared",
+      "calendarState",
+      "history"   ),   {
+      action,
+      itemType,
+      itemId,
+      itemName,
+      details,
+      userId: user.id,
+      userName: user.name,
+      createdAt: serverTimestamp()   }  );}
 
-
-
+function getCurrentHistoryUser() {
+  return {
+    id: "ivan-garcia",
+    name: "Ivan Garcia"
+  };
+}
   
   
 /* ===================================
@@ -1542,13 +1586,29 @@ async function saveCompletedForMonth(){
 
 
 
-async function toggleComplete(taskUid){
+async function toggleComplete(taskUid) {
   const key = storeKey(taskUid);
-  const isDone = !!completed[key];
-  if(isDone) delete completed[key];
-  else completed[key] = true;
-  render(); // instant visual feedback — persist in the background below
+  const wasDone = !!completed[key];
+
+  if (wasDone) {
+    delete completed[key];
+  } else {
+    completed[key] = true;
+  }
+
+  render();
   await saveCompletedForMonth();
+
+  const task = findTaskByUid(taskUid);
+
+  await addHistoryEntry({
+    action: wasDone ? "unchecked" : "checked",
+    itemType: "task",
+    itemId: taskUid,
+    itemName: task
+      ? getField(task, "deliverable")
+      : taskUid
+  });
 }
 
 /* ---------------- Date resolution ---------------- */
