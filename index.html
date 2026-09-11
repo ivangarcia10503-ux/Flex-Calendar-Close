@@ -73,11 +73,7 @@ h1{
 .save-status{
   font-size:0.72rem; color:var(--good); opacity:0; transition:opacity .25s; flex:1; min-width:120px;
 }
-.save-status.show{opacity:1;}
-.firebase-status{font-size:0.72rem; font-weight:600; white-space:nowrap;}
-.firebase-status.connecting{color:var(--ink-soft);}
-.firebase-status.connected{color:var(--good);}
-.firebase-status.offline{color:#B33;}
+.save-status.show{opacity:1;} .firebase-status{font-size:.72rem;font-weight:600}.firebase-status.connected{color:var(--good)}.firebase-status.offline{color:#B33}
 .link-status{font-size:0.7rem; color:var(--ink-soft);}
 .devbar{text-align:center; margin-top:6px;}
 .devbar-btn{
@@ -577,8 +573,7 @@ footer{margin-top:30px; text-align:center; font-size:0.72rem; color:var(--ink-so
   </div>
 
   <div class="savebar">
-    <span class="firebase-status connecting" id="firebaseStatus" role="status" aria-live="polite">● Connecting to shared calendar...</span>
-    <span class="save-status" id="saveStatus"></span>
+    <span class="firebase-status connecting" id="firebaseStatus">● Connecting...</span> <span class="save-status" id="saveStatus"></span>
   </div>
 
   <div class="tabs">
@@ -662,7 +657,6 @@ footer{margin-top:30px; text-align:center; font-size:0.72rem; color:var(--ink-so
 
   <div class="hint">WD0 = last business day of the month being closed. Weekends are skipped; company holidays are <b>not</b> factored in, so confirm dates that fall near a holiday. "Last WD of Prior Month" and "Mid-Month" deadlines are shown as text since they don't compute off this month's close.<br><span id="persistHint"></span></div>
   <footer>Source: US Flex – Close Schedule.xlsx</footer>
-  <div class="devbar"><button class="devbar-btn" id="firebaseTestBtn">Firebase Test</button></div>
 </div>
 
 <aside class="notes-panel">
@@ -722,7 +716,8 @@ import {
   addDoc,
   query,
   orderBy,
-  limit
+  limit,
+  serverTimestamp
 } from
 'https://www.gstatic.com/firebasejs/12.2.1/firebase-firestore.js';
 
@@ -740,6 +735,7 @@ const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
 let sharedState = {};
+let checkboxWritePending = false;
 
 
 
@@ -765,10 +761,9 @@ async function saveCalendarState() {
       referencesMap,
       subtasksMap,
       subCompleted,
-      updatedAt: new Date().toISOString(),
-      lastEditedBy: getCurrentUserName() || 'Unknown'
-    },
-    { merge: true }
+      updatedAt: serverTimestamp(),
+      lastEditedBy: getCurrentUserName() || "Unknown"
+    }, { merge:true }
   );
 }
 
@@ -837,50 +832,30 @@ onSnapshot(
     );  });
 
 
-function setFirebaseStatus(mode, message){
-  const el = document.getElementById('firebaseStatus');
-  if(!el) return;
-  el.className = 'firebase-status ' + mode;
-  el.textContent = message;
-}
-
 onSnapshot(
   doc(db, "shared", "calendarState"),
-  {
-    next: (snapshot) => {
-      const data = snapshot.data();
-      setFirebaseStatus('connected', '● Shared calendar connected');
-      if (!data) return;
-
-      // Evergreen/shared configuration applies regardless of which month another user is viewing.
-      noteOverrides = data.noteOverrides || {};
-      customTasks = data.customTasks || [];
-      hiddenTasks = new Set(data.hiddenTasks || []);
-      fieldOverrides = data.fieldOverrides || {};
-      referencesMap = data.referencesMap || {};
-      subtasksMap = data.subtasksMap || {};
-
-      // Month-specific activity is only applied when both users are viewing the same month.
-      // Legacy snapshots without stateMonth are accepted for backward compatibility.
-      if (!data.stateMonth || data.stateMonth === monthKey()) {
-        completed = data.completed || {};
-        notesList = data.notesList || [];
-        subCompleted = data.subCompleted || {};
-      }
-
-      render();
-      console.log("Calendar State Updated", {
-        stateMonth: data.stateMonth || 'legacy',
-        lastEditedBy: data.lastEditedBy || 'Unknown',
-        updatedAt: data.updatedAt || null
-      });
-    },
-    error: (err) => {
-      setFirebaseStatus('offline', '● Shared sync unavailable');
-      console.error('Calendar listener failed', err);
+  (snapshot) => {
+    const data = snapshot.data();
+    if (!data) return;
+    if(!checkboxWritePending && (!data.stateMonth || data.stateMonth === monthKey())){
+      completed = data.completed || {};
+      notesList = data.notesList || [];
+      subCompleted = data.subCompleted || {};
     }
-  }
-);
+    customTasks = data.customTasks || [];
+    hiddenTasks = new Set(
+      data.hiddenTasks || []
+    );
+    fieldOverrides = data.fieldOverrides || {};
+    referencesMap = data.referencesMap || {};
+    subtasksMap = data.subtasksMap || {};
+    render();
+    const el=document.getElementById('firebaseStatus'); if(el){el.className='firebase-status connected';el.textContent='● Shared calendar connected';}
+    console.log("Calendar State Updated");
+  }, (err)=>{
+    const el=document.getElementById('firebaseStatus'); if(el){el.className='firebase-status offline';el.textContent='● Shared sync unavailable';}
+    console.error('Calendar listener failed',err);
+  });
 
 /* ===================================
    ACTIVITY HISTORY (append-only log)
@@ -903,7 +878,9 @@ async function logActivity(action, detail){
       user: getCurrentUserName(),
       action,
       detail: detail || '',
-      ts: Date.now()
+      ts: Date.now(),
+      createdAt: serverTimestamp(),
+      month: monthKey()
     });
   }catch(e){
     console.error('Could not write history entry (check Firestore rules for the "history" collection)', e);
@@ -1805,15 +1782,21 @@ async function saveCompletedForMonth(){
 
 
 async function toggleComplete(taskUid){
-  const key = storeKey(taskUid);
-  const isDone = !!completed[key];
-  if(isDone) delete completed[key];
-  else completed[key] = true;
-  render(); // instant visual feedback — persist in the background below
-  await saveCompletedForMonth();
-  const t = findTaskByUid(taskUid);
-  const label = t ? getField(t,'deliverable') : taskUid;
-  logActivity(isDone ? 'unchecked' : 'checked', label);
+  const key=storeKey(taskUid);
+  const wasDone=!!completed[key];
+  if(wasDone) delete completed[key]; else completed[key]=true;
+  checkboxWritePending=true;
+  render();
+  try{
+    await saveCompletedForMonth();
+    const t=findTaskByUid(taskUid);
+    logActivity(wasDone?'unchecked':'checked',t?getField(t,'deliverable'):taskUid);
+  }catch(e){
+    if(wasDone) completed[key]=true; else delete completed[key];
+    render(); showSaveStatus('Checkbox could not sync. Please try again.',true); console.error(e);
+  }finally{
+    setTimeout(()=>{checkboxWritePending=false;},300);
+  }
 }
 
 /* ---------------- Date resolution ---------------- */
@@ -2583,22 +2566,6 @@ document.getElementById('todayLink').addEventListener('click', async ()=>{
   curYear = today.getFullYear(); curMonth = today.getMonth();
   await refreshAll();
 });
-
-document.getElementById('firebaseTestBtn')
-  .addEventListener('click', async () => {
-
-    await writeSyncTest();
-
-    console.log(
-      'Firebase Test Saved'
-    );
-
-  });
-
-
-
-
-
 
 document.getElementById('tabFlex').addEventListener('click', ()=>{ activeTab='flex'; clearAddTaskForm(); render(); });
 document.getElementById('tabDiv').addEventListener('click', ()=>{ activeTab='div'; clearAddTaskForm(); render(); });
