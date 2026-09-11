@@ -735,7 +735,7 @@ const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
 let sharedState = {};
-let checkboxWritePending = false;
+let unsubscribeMonthCheckboxes = null;
 
 
 
@@ -752,7 +752,6 @@ async function saveCalendarState() {
     doc(db, "shared", "calendarState"),
     {
       stateMonth: monthKey(),
-      completed,
       notesList,
       noteOverrides,
       customTasks,
@@ -837,8 +836,7 @@ onSnapshot(
   (snapshot) => {
     const data = snapshot.data();
     if (!data) return;
-    if(!checkboxWritePending && (!data.stateMonth || data.stateMonth === monthKey())){
-      completed = data.completed || {};
+    if(!data.stateMonth || data.stateMonth === monthKey()){
       notesList = data.notesList || [];
       subCompleted = data.subCompleted || {};
     }
@@ -1756,49 +1754,57 @@ async function loadCompletedForMonth(){
 
 
 
+// Checkbox completion is stored in one Firestore document per month.
+// This avoids stale whole-calendar snapshots re-checking a box after it was unchecked.
+function listenForCompletedMonth(){
+  if(unsubscribeMonthCheckboxes) unsubscribeMonthCheckboxes();
+  const listeningMonth = monthKey();
+  unsubscribeMonthCheckboxes = onSnapshot(
+    doc(db, 'months', listeningMonth),
+    (snapshot) => {
+      if(listeningMonth !== monthKey()) return;
+      const data = snapshot.data() || {};
+      completed = {};
+      (data.completedIds || []).forEach(id => { completed[storeKey(id)] = true; });
+      render();
+    },
+    (err) => {
+      console.error('Monthly checkbox listener failed', err);
+      showSaveStatus('Checkbox sync is unavailable. Please refresh and try again.', true);
+    }
+  );
+}
 async function saveCompletedForMonth(){
   const prefix = 'close:'+monthKey()+':';
-
   const ids = Object.keys(completed)
     .filter(k=>k.startsWith(prefix))
     .map(k=>k.slice(prefix.length));
-
   await Promise.all([
     pSet('close-completed:'+monthKey(), JSON.stringify(ids)),
-    registerMonthInIndex()
+    registerMonthInIndex(),
+    setDoc(doc(db, 'months', monthKey()), {
+      completedIds: ids,
+      updatedAt: serverTimestamp(),
+      lastEditedBy: getCurrentUserName() || 'Unknown'
+    }, { merge:true })
   ]);
-
-  await saveCalendarState();
 }
-
-
-
-
-
-
-
-
-
-
-
 async function toggleComplete(taskUid){
-  const key=storeKey(taskUid);
-  const wasDone=!!completed[key];
-  if(wasDone) delete completed[key]; else completed[key]=true;
-  checkboxWritePending=true;
+  const key = storeKey(taskUid);
+  const wasDone = !!completed[key];
+  if(wasDone) delete completed[key]; else completed[key] = true;
   render();
   try{
     await saveCompletedForMonth();
-    const t=findTaskByUid(taskUid);
-    logActivity(wasDone?'unchecked':'checked',t?getField(t,'deliverable'):taskUid);
+    const t = findTaskByUid(taskUid);
+    logActivity(wasDone ? 'unchecked' : 'checked', t ? getField(t,'deliverable') : taskUid);
   }catch(e){
-    if(wasDone) completed[key]=true; else delete completed[key];
-    render(); showSaveStatus('Checkbox could not sync. Please try again.',true); console.error(e);
-  }finally{
-    setTimeout(()=>{checkboxWritePending=false;},300);
+    if(wasDone) completed[key] = true; else delete completed[key];
+    render();
+    showSaveStatus('Checkbox could not sync. Please try again.', true);
+    console.error('Checkbox save failed', e);
   }
 }
-
 /* ---------------- Date resolution ---------------- */
 // Model, confirmed against the real close schedule:
 //   - WD-1 is the ONE fixed exception: the last business day of the PREVIOUS month.
@@ -2511,6 +2517,7 @@ async function refreshAll(){
   await loadSubCompletedForMonth();
   await syncAllParentsFromSubtasks();
   render();
+  listenForCompletedMonth();
 }
 
 /* ---------------- Month/year jump picker ---------------- */
