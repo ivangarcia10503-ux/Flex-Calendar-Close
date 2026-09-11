@@ -74,7 +74,17 @@ h1{
   font-size:0.72rem; color:var(--good); opacity:0; transition:opacity .25s; flex:1; min-width:120px;
 }
 .save-status.show{opacity:1;}
+.firebase-status{font-size:0.72rem; font-weight:600; white-space:nowrap;}
+.firebase-status.connecting{color:var(--ink-soft);}
+.firebase-status.connected{color:var(--good);}
+.firebase-status.offline{color:#B33;}
 .link-status{font-size:0.7rem; color:var(--ink-soft);}
+.devbar{text-align:center; margin-top:6px;}
+.devbar-btn{
+  border:none; background:none; padding:2px 6px; cursor:pointer;
+  font-size:0.66rem; color:var(--line); opacity:0.5;
+}
+.devbar-btn:hover{color:var(--ink-soft); opacity:1;}
 
 /* ---- Month/year jump picker ---- */
 .calbtn-wrap{position:relative; display:flex; align-items:center; gap:8px;}
@@ -286,6 +296,14 @@ details.refs[open] summary:before{content:"– references";}
   padding:5px 12px; font-size:0.74rem; font-weight:600; cursor:pointer;
 }
 .ref-add > .ref-add-btn:hover{opacity:0.9;}
+.ref-scope-row{display:flex; gap:12px; font-size:0.74rem; color:var(--ink-soft); margin-top:2px;}
+.ref-scope-opt{display:flex; align-items:center; gap:4px; cursor:pointer;}
+.ref-scope-opt input{margin:0; cursor:pointer;}
+.ref-scope-tag{
+  font-size:0.62rem; text-transform:uppercase; letter-spacing:.03em; font-weight:600;
+  color:var(--div-accent); background:var(--div-accent-soft); border:1px solid var(--div-accent);
+  border-radius:99px; padding:1px 7px; white-space:nowrap; flex-shrink:0;
+}
 .contact-line{font-size:0.72rem; color:var(--div-accent); margin-top:4px;}
 .pin-badge{
   font-size:0.68rem; font-weight:600; color:#8A6A15; background:#FBEFC8; border:1px solid #E8C766;
@@ -456,6 +474,77 @@ footer{margin-top:30px; text-align:center; font-size:0.72rem; color:var(--ink-so
 .note-item .n-tab-tag{font-size:0.62rem; text-transform:uppercase; letter-spacing:.03em; color:var(--ink-soft); margin-top:3px;}
 .note-empty{font-size:0.78rem; color:var(--ink-soft); text-align:center; padding:14px 4px;}
 @media (max-width:900px){ .notes-panel{position:static; max-height:none;} }
+
+/* ---- History (side button + slide-in drawer) ---- */
+.history-fab{
+  position:fixed; top:50%; right:0; transform:translateY(-50%);
+  background:var(--accent); color:#fff; border:none;
+  border-radius:10px 0 0 10px; padding:12px 8px; cursor:pointer;
+  font-family:'Inter',sans-serif; font-size:0.76rem; font-weight:600;
+  writing-mode:vertical-rl; text-orientation:mixed; letter-spacing:.03em;
+  box-shadow:-2px 0 10px rgba(0,0,0,.15); z-index:40; display:flex; align-items:center; gap:6px;
+}
+.history-fab:hover{opacity:0.92;}
+.history-backdrop{
+  position:fixed; inset:0; background:rgba(20,20,20,.28); z-index:49; display:none;
+}
+.history-backdrop.show{display:block;}
+.history-drawer{
+  position:fixed; top:0; right:-380px; width:360px; height:100vh; background:var(--card);
+  border-left:1px solid var(--line); box-shadow:-6px 0 24px rgba(0,0,0,.14);
+  z-index:50; display:flex; flex-direction:column; transition:right .22s ease;
+}
+.history-drawer.open{right:0;}
+.history-head{
+  display:flex; align-items:center; justify-content:space-between;
+  padding:16px 18px; border-bottom:1px solid var(--line);
+}
+.history-head h2{font-family:'Fraunces',serif; font-weight:600; font-size:1.05rem; margin:0;}
+.history-close{border:none; background:none; font-size:1.2rem; cursor:pointer; color:var(--ink-soft); line-height:1;}
+.history-close:hover{color:var(--ink);}
+.history-whoami{
+  padding:10px 18px; font-size:0.76rem; color:var(--ink-soft); border-bottom:1px solid var(--line);
+}
+.history-whoami b{color:var(--ink);}
+.history-foot{text-align:center; padding:4px 0 6px;}
+.history-changename{
+  border:none; background:none; cursor:pointer; padding:2px 4px;
+  font-size:0.6rem; color:var(--line); text-decoration:none;
+}
+.history-changename:hover{color:var(--ink-soft); text-decoration:underline; text-underline-offset:2px;}
+.history-list{flex:1; overflow-y:auto; padding:10px 14px;}
+.history-item{padding:10px 8px; border-bottom:1px solid var(--line); font-size:0.82rem;}
+.history-item:last-child{border-bottom:none;}
+.history-item .h-line1{display:flex; justify-content:space-between; gap:8px; align-items:baseline;}
+.history-item .h-user{font-weight:600; color:var(--ink);}
+.history-item .h-time{font-family:'IBM Plex Mono',monospace; font-size:0.68rem; color:var(--ink-soft); white-space:nowrap;}
+.history-item .h-action{color:var(--ink-soft); font-size:0.78rem; margin-top:2px;}
+.history-item .h-action b{color:var(--ink); font-weight:600;}
+.history-empty{padding:30px 10px; text-align:center; color:var(--ink-soft); font-size:0.82rem;}
+@media (max-width:520px){ .history-drawer{width:100vw; right:-100vw;} }
+
+/* ---- Name-selector modal (temporary stand-in until real Firebase Auth) ---- */
+.name-modal-backdrop{
+  position:fixed; inset:0; background:rgba(20,20,20,.4); z-index:60;
+  display:none; align-items:center; justify-content:center;
+}
+.name-modal-backdrop.show{display:flex;}
+.name-modal{
+  background:var(--card); border-radius:14px; padding:22px; width:300px;
+  box-shadow:0 12px 36px rgba(0,0,0,.22);
+}
+.name-modal h3{font-family:'Fraunces',serif; font-weight:600; font-size:1.05rem; margin:0 0 6px;}
+.name-modal p{font-size:0.8rem; color:var(--ink-soft); margin:0 0 14px; line-height:1.4;}
+.name-modal input{
+  width:100%; font-family:'Inter',sans-serif; font-size:0.88rem; border:1px solid var(--line);
+  border-radius:8px; padding:9px 10px; background:var(--paper); color:var(--ink); margin-bottom:14px;
+}
+.name-modal-actions{display:flex; justify-content:flex-end;}
+.name-modal-actions button{
+  background:var(--accent); color:#fff; border:none; border-radius:8px; padding:8px 18px;
+  font-size:0.84rem; font-weight:600; cursor:pointer;
+}
+.name-modal-actions button:hover{opacity:0.9;}
 </style>
 </head>
 <body>
@@ -488,10 +577,7 @@ footer{margin-top:30px; text-align:center; font-size:0.72rem; color:var(--ink-so
   </div>
 
   <div class="savebar">
-    <button class="savebar-btn save" id="saveChangesBtn">💾 Save</button>
-    <button class="savebar-btn load" id="loadChangesBtn">📂 Load</button>
-    <input type="file" id="loadChangesInput" accept="application/json" style="display:none;">
-    <span class="link-status" id="linkStatus"></span>
+    <span class="firebase-status connecting" id="firebaseStatus" role="status" aria-live="polite">● Connecting to shared calendar...</span>
     <span class="save-status" id="saveStatus"></span>
   </div>
 
@@ -514,16 +600,6 @@ footer{margin-top:30px; text-align:center; font-size:0.72rem; color:var(--ink-so
   <div class="addtask-bar">
     <div class="hidden-toggle" id="hiddenToggle"></div>
     <button class="addtask-btn" id="addTaskBtn">+ New checkbox</button>
-
-<button class="addtask-btn" id="firebaseTestBtn">
-  Firebase Test
-</button>
-
-
-
-
-
-
   </div>
   <div class="hidden-panel" id="hiddenPanel" style="display:none;"></div>
   <div class="addtask-form" id="addTaskForm" style="display:none;">
@@ -544,10 +620,18 @@ footer{margin-top:30px; text-align:center; font-size:0.72rem; color:var(--ink-so
         <input type="text" id="atPreparer" placeholder="e.g. I. Garcia">
       </label>
     </div>
+    <div class="addtask-grid">
+      <label>Reviewer <span class="opt">(optional)</span>
+        <input type="text" id="atReviewer" placeholder="e.g. K. Hogg">
+      </label>
+      <label>Cadence
+        <select id="atCadence">
+          <option value="monthly">Monthly — shows up every month</option>
+          <option value="quarterly">Quarterly — only shows in Mar / Jun / Sep / Dec</option>
+        </select>
+      </label>
+    </div>
     <div style="font-size:0.72rem; color:var(--ink-soft); margin-top:-6px;">Note: WD+N is the Nth business day of <b>this</b> month (WD+1 = 1st business day). WD-1 is the one exception — the last business day of the <b>previous</b> month. Other negative values (WD-2, etc.) count back from this month's own month-end.</div>
-    <label>Reviewer <span class="opt">(optional)</span>
-      <input type="text" id="atReviewer" placeholder="e.g. K. Hogg">
-    </label>
     <label class="block">Notes <span class="opt">(optional)</span>
       <textarea id="atNotes" placeholder="How to complete this step..."></textarea>
     </label>
@@ -577,7 +661,8 @@ footer{margin-top:30px; text-align:center; font-size:0.72rem; color:var(--ink-so
   <div id="taskList"></div>
 
   <div class="hint">WD0 = last business day of the month being closed. Weekends are skipped; company holidays are <b>not</b> factored in, so confirm dates that fall near a holiday. "Last WD of Prior Month" and "Mid-Month" deadlines are shown as text since they don't compute off this month's close.<br><span id="persistHint"></span></div>
-  <footer>Source: US Flex – Close Schedule.xlsx · Personal tracker, not synced with the team</footer>
+  <footer>Source: US Flex – Close Schedule.xlsx</footer>
+  <div class="devbar"><button class="devbar-btn" id="firebaseTestBtn">Firebase Test</button></div>
 </div>
 
 <aside class="notes-panel">
@@ -590,6 +675,31 @@ footer{margin-top:30px; text-align:center; font-size:0.72rem; color:var(--ink-so
   </div>
   <div class="note-list" id="noteList"></div>
 </aside>
+</div>
+
+<button class="history-fab" id="historyFab">🕓 History</button>
+<div class="history-backdrop" id="historyBackdrop"></div>
+<aside class="history-drawer" id="historyDrawer">
+  <div class="history-head">
+    <h2>History</h2>
+    <button class="history-close" id="historyClose">✕</button>
+  </div>
+  <div class="history-whoami">
+    <span>Logging as <b id="historyWhoami"></b></span>
+  </div>
+  <div class="history-list" id="historyList"></div>
+  <div class="history-foot"><button class="history-changename" id="historyChangeName">Change</button></div>
+</aside>
+
+<div class="name-modal-backdrop" id="nameModalBackdrop">
+  <div class="name-modal">
+    <h3>Who's editing?</h3>
+    <p>Enter a username — it'll show up next to any change you make in the History log. You'll only need to do this once per browser.</p>
+    <input type="text" id="nameModalInput" placeholder="e.g. Ivan G">
+    <div class="name-modal-actions">
+      <button id="nameModalSave">Save</button>
+    </div>
+  </div>
 </div>
 
 <script type="module">
@@ -612,14 +722,9 @@ import {
   addDoc,
   query,
   orderBy,
-  limit,
-  serverTimestamp
+  limit
 } from
 'https://www.gstatic.com/firebasejs/12.2.1/firebase-firestore.js';
-
-
-
-
 
   
 const firebaseConfig = {
@@ -650,15 +755,22 @@ async function saveCalendarState() {
   await setDoc(
     doc(db, "shared", "calendarState"),
     {
+      stateMonth: monthKey(),
       completed,
       notesList,
+      noteOverrides,
       customTasks,
       hiddenTasks: [...hiddenTasks],
       fieldOverrides,
       referencesMap,
       subtasksMap,
       subCompleted,
-      updatedAt: new Date().toISOString()   }  );}
+      updatedAt: new Date().toISOString(),
+      lastEditedBy: getCurrentUserName() || 'Unknown'
+    },
+    { merge: true }
+  );
+}
 
   
 
@@ -684,34 +796,9 @@ async function writeSyncTest() {
   
 
 
-async function addHistoryEntry({
-  action,
-  itemType,
-  itemId,
-  itemName,
-  details = ""}) {
-  const user = getCurrentHistoryUser();
-  await addDoc(
-    collection(
-      db,
-      "shared",
-      "calendarState",
-      "history"   ),   {
-      action,
-      itemType,
-      itemId,
-      itemName,
-      details,
-      userId: user.id,
-      userName: user.name,
-      createdAt: serverTimestamp()   }  );}
 
-function getCurrentHistoryUser() {
-  return {
-    id: "ivan-garcia",
-    name: "Ivan Garcia"
-  };
-}
+
+
   
   
 /* ===================================
@@ -750,24 +837,92 @@ onSnapshot(
     );  });
 
 
+function setFirebaseStatus(mode, message){
+  const el = document.getElementById('firebaseStatus');
+  if(!el) return;
+  el.className = 'firebase-status ' + mode;
+  el.textContent = message;
+}
+
 onSnapshot(
   doc(db, "shared", "calendarState"),
-  (snapshot) => {
-    const data = snapshot.data();
-    if (!data) return;
-    completed = data.completed || {};
-    notesList = data.notesList || [];
-    customTasks = data.customTasks || [];
-    hiddenTasks = new Set(
-      data.hiddenTasks || []
-    );
-    fieldOverrides = data.fieldOverrides || {};
-    referencesMap = data.referencesMap || {};
-    subtasksMap = data.subtasksMap || {};
-    subCompleted = data.subCompleted || {};
-    render();
-    console.log(
-      "Calendar State Updated"   );  });
+  {
+    next: (snapshot) => {
+      const data = snapshot.data();
+      setFirebaseStatus('connected', '● Shared calendar connected');
+      if (!data) return;
+
+      // Evergreen/shared configuration applies regardless of which month another user is viewing.
+      noteOverrides = data.noteOverrides || {};
+      customTasks = data.customTasks || [];
+      hiddenTasks = new Set(data.hiddenTasks || []);
+      fieldOverrides = data.fieldOverrides || {};
+      referencesMap = data.referencesMap || {};
+      subtasksMap = data.subtasksMap || {};
+
+      // Month-specific activity is only applied when both users are viewing the same month.
+      // Legacy snapshots without stateMonth are accepted for backward compatibility.
+      if (!data.stateMonth || data.stateMonth === monthKey()) {
+        completed = data.completed || {};
+        notesList = data.notesList || [];
+        subCompleted = data.subCompleted || {};
+      }
+
+      render();
+      console.log("Calendar State Updated", {
+        stateMonth: data.stateMonth || 'legacy',
+        lastEditedBy: data.lastEditedBy || 'Unknown',
+        updatedAt: data.updatedAt || null
+      });
+    },
+    error: (err) => {
+      setFirebaseStatus('offline', '● Shared sync unavailable');
+      console.error('Calendar listener failed', err);
+    }
+  }
+);
+
+/* ===================================
+   ACTIVITY HISTORY (append-only log)
+   Each user edit writes its OWN document into a "history" collection
+   (addDoc, not a shared doc overwrite) so two people editing at the same
+   moment never clobber each other's entries. A live query keeps everyone's
+   History drawer in sync in real time, the same way calendarState does.
+   Wrapped defensively: if Firestore rules haven't been opened up for this
+   new collection yet, History simply stays empty instead of taking the
+   rest of the app down with it.
+=================================== */
+let historyCollectionRef = null;
+const HISTORY_LIMIT = 300; // keep the live log bounded — plenty for an audit trail
+let activityLog = [];
+
+async function logActivity(action, detail){
+  if(!historyCollectionRef) return;
+  try{
+    await addDoc(historyCollectionRef, {
+      user: getCurrentUserName(),
+      action,
+      detail: detail || '',
+      ts: Date.now()
+    });
+  }catch(e){
+    console.error('Could not write history entry (check Firestore rules for the "history" collection)', e);
+  }
+}
+
+try{
+  historyCollectionRef = collection(db, "history");
+  onSnapshot(
+    query(historyCollectionRef, orderBy('ts', 'desc'), limit(HISTORY_LIMIT)),
+    (snapshot) => {
+      activityLog = snapshot.docs.map(d => d.data());
+      renderHistoryDrawer();
+    },
+    (err) => console.error('History listener failed (check Firestore rules for the "history" collection)', err)
+  );
+}catch(e){
+  console.error('Could not set up History', e);
+}
 
 
 
@@ -1028,6 +1183,19 @@ function esc(str){
   return (str==null?'':String(str)).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
+/* ---------------- Current user (one-time name prompt, per browser) ----------------
+   Stored in THIS browser's localStorage only — it's who "you" are on this
+   device, not synced state. Asked once (see init() below); after that it's
+   just remembered, so you won't see the prompt again on this browser unless
+   you use "Change" in the History drawer. */
+const USER_NAME_KEY = 'usflexclose:userName';
+function getCurrentUserName(){
+  try{ return window.localStorage.getItem(USER_NAME_KEY) || ''; }catch(e){ return ''; }
+}
+function setCurrentUserName(name){
+  try{ window.localStorage.setItem(USER_NAME_KEY, name); }catch(e){ /* ignore */ }
+}
+
 let completed = {}; // {storageKey: true} for the current month
 
 // Reference-note overrides and guide links are NOT month-scoped — they're evergreen
@@ -1044,8 +1212,13 @@ async function loadNoteOverrides(){
   try{ noteOverrides = raw ? JSON.parse(raw) : {}; }catch(e){ noteOverrides = {}; }
 }
 async function saveNoteOverride(taskId, text){
+  const hadTextBefore = !!(getNoteTextById(taskId, findTaskByUid(taskId)?.notes).trim());
   noteOverrides[taskId] = text;
   await pSet('close-tasknotes-v1', JSON.stringify(noteOverrides));
+  await saveCalendarState();
+  const t = findTaskByUid(taskId);
+  const label = t ? getField(t,'deliverable') : taskId;
+  logActivity(hadTextBefore ? 'task note edited' : 'task note added', label);
 }
 function getNoteTextById(id, defaultText){
   return noteOverrides[id] !== undefined ? noteOverrides[id] : (defaultText || '');
@@ -1081,7 +1254,11 @@ function buildNotesBlock(id, defaultText){
     </details>`;
 }
 function buildRefsBlock(id){
-  const refs = referencesMap[id] || [];
+  const allRefs = referencesMap[id] || [];
+  // "This month only" references quietly age out of view once the month moves on —
+  // they're still in storage (so flipping back to that month still shows them), just
+  // not carried into every future month like an evergreen reference is.
+  const refs = allRefs.filter(r => r.scope !== 'monthly' || r.month === monthKey());
   const refsOpen = openRefs.has(id);
   const refItems = refs.length
     ? refs.map(r=>{
@@ -1093,10 +1270,12 @@ function buildRefsBlock(id){
         } else {
           mainLink = `<span class="ref-path mono">${esc(r.url)}</span>`;
         }
+        const scopeTag = r.scope === 'monthly' ? `<span class="ref-scope-tag" title="Only shows this month — won't carry forward">This month only</span>` : '';
         return `
         <div class="ref-item">
           <span class="ref-label">${esc(r.label)}</span>
           ${mainLink}
+          ${scopeTag}
           <button class="ref-del" data-delref="${id}|${r.id}" title="Remove reference">✕</button>
         </div>`;
       }).join('')
@@ -1106,6 +1285,12 @@ function buildRefsBlock(id){
     ? `<div class="ref-pending-file">📎 ${esc(pendingFile.name)} (${formatFileSize(pendingFile.size)}) ready to attach <button type="button" class="ref-pending-clear" data-clearpending="${id}">✕</button></div>`
     : '';
   const refErr = refAddErrors[id] ? `<div class="ref-add-error">${esc(refAddErrors[id])}</div>` : '';
+  const scope = pendingRefScope[id] || 'evergreen';
+  const scopeRow = `
+    <div class="ref-scope-row">
+      <label class="ref-scope-opt"><input type="radio" name="refscope-${id}" value="evergreen" data-refscope="${id}" ${scope==='evergreen'?'checked':''}> Keep every month</label>
+      <label class="ref-scope-opt"><input type="radio" name="refscope-${id}" value="monthly" data-refscope="${id}" ${scope==='monthly'?'checked':''}> This month only</label>
+    </div>`;
   return `
     <details class="refs" ${refsOpen?'open':''} data-refid="${id}">
       <summary></summary>
@@ -1119,6 +1304,7 @@ function buildRefsBlock(id){
           </div>
           ${pendingFileHtml}
           <input type="text" class="ref-input-url" data-refuidurl="${id}" placeholder="${pendingFile ? "Optional — also add a link if it lives somewhere else too" : "Paste a link (SharePoint, Drive) — or attach a file above instead"}">
+          ${scopeRow}
           ${refErr}
           <button class="ref-add-btn" data-refadd="${id}">+ Add</button>
         </div>
@@ -1187,7 +1373,8 @@ async function syncAllParentsFromSubtasks(){
 
 async function toggleSubComplete(parentId, subId){
   const eid = subEid(parentId, subId);
-  if(subCompleted[eid]) delete subCompleted[eid];
+  const wasDone = !!subCompleted[eid];
+  if(wasDone) delete subCompleted[eid];
   else subCompleted[eid] = true;
   const parentChanged = syncParentFromSubtasksInMemory(parentId);
   render(); // instant visual feedback — no storage round trip in the way
@@ -1197,6 +1384,11 @@ async function toggleSubComplete(parentId, subId){
   const saves = [saveSubCompletedForMonth()];
   if(parentChanged) saves.push(saveCompletedForMonth());
   await Promise.all(saves);
+  const parent = findTaskByUid(parentId);
+  const sub = (subtasksMap[parentId]||[]).find(s=>s.id===subId);
+  const parentLabel = parent ? getField(parent,'deliverable') : parentId;
+  const subLabel = sub ? sub.title : subId;
+  logActivity(wasDone ? 'unchecked' : 'checked', `${subLabel} (sub-task of ${parentLabel})`);
 }
 async function addSubtask(parentId, title){
   if(!title || !title.trim()) return {ok:false, error:'Please enter a sub-task title.'};
@@ -1207,9 +1399,12 @@ async function addSubtask(parentId, title){
   await saveSubtasksMap();
   await syncParentFromSubtasks(parentId);
   render();
+  const parentT = findTaskByUid(parentId);
+  logActivity('sub-task created', `${title.trim()} (under ${parentT?getField(parentT,'deliverable'):parentId})`);
   return {ok:true};
 }
 async function deleteSubtask(parentId, subId){
+  const removed = (subtasksMap[parentId]||[]).find(s=>s.id===subId);
   subtasksMap[parentId] = (subtasksMap[parentId]||[]).filter(s=>s.id!==subId);
   await saveSubtasksMap();
   const eid = subEid(parentId, subId);
@@ -1229,6 +1424,8 @@ async function deleteSubtask(parentId, subId){
   }
   await syncParentFromSubtasks(parentId);
   render();
+  const parentT2 = findTaskByUid(parentId);
+  logActivity('sub-task deleted', `${removed?removed.title:subId} (under ${parentT2?getField(parentT2,'deliverable'):parentId})`);
 }
 function buildSubtaskRow(parent, s){
   const eid = subEid(parent.id, s.id);
@@ -1312,6 +1509,11 @@ function getRaw(task){
   if(o && o.raw !== undefined && o.raw !== '') return o.raw;
   return task.raw;
 }
+function getCadence(task){
+  const o = fieldOverrides[task.id];
+  if(o && (o.cadence === 'monthly' || o.cadence === 'quarterly')) return o.cadence;
+  return task.cadence === 'quarterly' ? 'quarterly' : 'monthly';
+}
 async function setFields(taskId, patch){
   fieldOverrides[taskId] = {...(fieldOverrides[taskId]||{}), ...patch};
   await saveFieldOverrides();
@@ -1350,7 +1552,7 @@ function formatFileSize(bytes){
   return (bytes/(1024*1024)).toFixed(1) + ' MB';
 }
 
-async function addReference(taskId, label, url, file){
+async function addReference(taskId, label, url, file, scope){
   if(!taskId || !label.trim()) return {ok:false, error:'Please enter a label.'};
   const trimmedUrl = (url||'').trim();
   if(!file && !trimmedUrl) return {ok:false, error:'Attach a file or paste a link.'};
@@ -1359,7 +1561,8 @@ async function addReference(taskId, label, url, file){
   }
   if(!referencesMap[taskId]) referencesMap[taskId] = [];
   const id = 'r'+Date.now()+Math.random().toString(36).slice(2,6);
-  const entry = { id, label: label.trim(), url: trimmedUrl };
+  const entry = { id, label: label.trim(), url: trimmedUrl, scope: (scope==='monthly'?'monthly':'evergreen') };
+  if(entry.scope === 'monthly') entry.month = monthKey();
   if(file){
     try{
       await storeRefFile(id, file);
@@ -1376,6 +1579,10 @@ async function addReference(taskId, label, url, file){
   openRefs.add(taskId);
   await saveReferences();
   render();
+  const t0 = findTaskByUid(taskId);
+  const taskLabel0 = t0 ? getField(t0,'deliverable') : taskId;
+  const scopeNote = entry.scope === 'monthly' ? ', this month only' : '';
+  logActivity(entry.hasFile ? 'attachment added' : 'reference added', `${entry.label} (${taskLabel0}${scopeNote})`);
   return {ok:true};
 }
 async function deleteReference(taskId, refId){
@@ -1384,6 +1591,11 @@ async function deleteReference(taskId, refId){
   await saveReferences();
   if(entry && entry.hasFile) await deleteRefFile(refId);
   render();
+  if(entry){
+    const t1 = findTaskByUid(taskId);
+    const taskLabel1 = t1 ? getField(t1,'deliverable') : taskId;
+    logActivity(entry.hasFile ? 'attachment removed' : 'reference removed', `${entry.label} (${taskLabel1})`);
+  }
 }
 async function openRefFile(taskId, refId){
   const entry = (referencesMap[taskId]||[]).find(r=>r.id===refId);
@@ -1404,6 +1616,7 @@ async function openRefFile(taskId, refId){
 }
 function isHttpUrl(u){ return /^https?:\/\//i.test(u); }
 let pendingRefFiles = {}; // {taskId: File} — picked but not yet added
+let pendingRefScope = {}; // {taskId: 'evergreen'|'monthly'} — chosen scope for the next add, before it's submitted
 let refAddErrors = {}; // {taskId: error message}
 
 // User-added checklist items. Evergreen like notes/references — they roll forward to every
@@ -1421,8 +1634,10 @@ async function addCustomTask(task){
   customTasks.push(task);
   await saveCustomTasks();
   render();
+  logActivity('custom checkbox created', task.deliverable);
 }
 async function deleteCustomTask(id){
+  const removed = customTasks.find(t=>t.id===id);
   customTasks = customTasks.filter(t=>t.id!==id);
   await saveCustomTasks();
   if(subtasksMap[id]){
@@ -1436,6 +1651,7 @@ async function deleteCustomTask(id){
     await saveSubtasksMap();
   }
   render();
+  logActivity('custom checkbox deleted', removed ? getField(removed,'deliverable') : id);
 }
 function getTaskTab(task){
   if(FLEX_TASKS.includes(task)) return 'flex';
@@ -1459,11 +1675,15 @@ async function hideTask(id){
   hiddenTasks.add(id);
   await saveHiddenTasks();
   render();
+  const t = findTaskByUid(id);
+  logActivity('checkbox hidden', t ? getField(t,'deliverable') : id);
 }
 async function restoreTask(id){
   hiddenTasks.delete(id);
   await saveHiddenTasks();
   render();
+  const t = findTaskByUid(id);
+  logActivity('checkbox restored', t ? getField(t,'deliverable') : id);
 }
 
 // Tracks which months have ever had data saved, so a full backup export can find them all
@@ -1512,12 +1732,19 @@ async function addNote(taskUid, text){
   notesList.push({id:'n'+Date.now()+Math.random().toString(36).slice(2,6), taskUid, text:text.trim(), ts:Date.now()});
   await saveNotesForMonth();
   render();
+  const t = findTaskByUid(taskUid);
+  logActivity('note added', t ? getField(t,'deliverable') : taskUid);
 }
 
 async function deleteNote(noteId){
+  const removed = notesList.find(n=>n.id===noteId);
   notesList = notesList.filter(n=>n.id!==noteId);
   await saveNotesForMonth();
   render();
+  if(removed){
+    const t = findTaskByUid(removed.taskUid);
+    logActivity('note deleted', t ? getField(t,'deliverable') : removed.taskUid);
+  }
 }
 
 function flashElement(el){
@@ -1577,29 +1804,16 @@ async function saveCompletedForMonth(){
 
 
 
-async function toggleComplete(taskUid) {
+async function toggleComplete(taskUid){
   const key = storeKey(taskUid);
-  const wasDone = !!completed[key];
-
-  if (wasDone) {
-    delete completed[key];
-  } else {
-    completed[key] = true;
-  }
-
-  render();
+  const isDone = !!completed[key];
+  if(isDone) delete completed[key];
+  else completed[key] = true;
+  render(); // instant visual feedback — persist in the background below
   await saveCompletedForMonth();
-
-  const task = findTaskByUid(taskUid);
-
-  await addHistoryEntry({
-    action: wasDone ? "unchecked" : "checked",
-    itemType: "task",
-    itemId: taskUid,
-    itemName: task
-      ? getField(task, "deliverable")
-      : taskUid
-  });
+  const t = findTaskByUid(taskUid);
+  const label = t ? getField(t,'deliverable') : taskUid;
+  logActivity(isDone ? 'unchecked' : 'checked', label);
 }
 
 /* ---------------- Date resolution ---------------- */
@@ -1645,7 +1859,7 @@ function resolvedDates(task){
   return [{date:r.date, note:task.note||'', priorAnchored:r.priorAnchored}];
 }
 function appliesThisMonth(task){
-  if(task.cadence === 'quarterly' && !isQuarterEndMonth(curMonth) && !showQuarterlyAlways) return false;
+  if(getCadence(task) === 'quarterly' && !isQuarterEndMonth(curMonth) && !showQuarterlyAlways) return false;
   return true;
 }
 
@@ -1740,7 +1954,7 @@ function renderProgress(){
 
 function renderQToggle(){
   const tasks = getTaskSet();
-  const hiddenCount = tasks.filter(t=> t.cadence==='quarterly' && !isQuarterEndMonth(curMonth)).length;
+  const hiddenCount = tasks.filter(t=> getCadence(t)==='quarterly' && !isQuarterEndMonth(curMonth)).length;
   const el = document.getElementById('qToggle');
   if(hiddenCount===0 || isQuarterEndMonth(curMonth)){ el.style.display='none'; return; }
   el.style.display='block';
@@ -1815,12 +2029,20 @@ function renderList(){
 
       let cardTopBlock, metaBlock;
       if(isEditingFields){
-        const draft = fieldDrafts[t.id] || {deliverable:dName, preparer:dPreparer, reviewer:dReviewer, contact:dContact, wd: canEditWD ? String(getOffset(t)) : undefined};
+        const draft = fieldDrafts[t.id] || {deliverable:dName, preparer:dPreparer, reviewer:dReviewer, contact:dContact, wd: canEditWD ? String(getOffset(t)) : undefined, cadence: getCadence(t)};
         const wdField = canEditWD
           ? `<div class="field-edit-row">
                <input type="text" class="field-edit-input" data-fieldedit="${t.id}|wd" value="${esc(draft.wd)}" placeholder="WD number (e.g. -1, 0, +5, 10)">
              </div>`
           : '';
+        const draftCadence = draft.cadence === 'quarterly' ? 'quarterly' : 'monthly';
+        const cadenceField = `
+          <div class="field-edit-row">
+            <select class="field-edit-input" data-fieldedit="${t.id}|cadence">
+              <option value="monthly" ${draftCadence==='monthly'?'selected':''}>Monthly — shows up every month</option>
+              <option value="quarterly" ${draftCadence==='quarterly'?'selected':''}>Quarterly — only shows in Mar / Jun / Sep / Dec</option>
+            </select>
+          </div>`;
         const errText = fieldEditErrors[t.id] ? `<div class="field-edit-error">${esc(fieldEditErrors[t.id])}</div>` : '';
         cardTopBlock = `
           <div class="card-top">
@@ -1831,6 +2053,7 @@ function renderList(){
                 <input type="text" class="field-edit-input" data-fieldedit="${t.id}|reviewer" value="${esc(draft.reviewer)}" placeholder="Reviewer">
               </div>
               ${wdField}
+              ${cadenceField}
               <input type="text" class="field-edit-input" data-fieldedit="${t.id}|contact" value="${esc(draft.contact)}" placeholder="Contacts (e.g. Travis Duran, Brandon Smith) — leave blank to hide">
               ${errText}
               <div class="field-edit-actions">
@@ -1847,7 +2070,7 @@ function renderList(){
             <div class="card-title"><span class="${done?'strike':''}">${t.taskId?`<span class="taskid">${t.taskId}</span>`:''}${esc(dName)}</span> ${pin}${subBadge}${customTag}<button class="field-edit-btn" data-editfields="${t.id}" title="Edit name/assignment/WD/contacts">✎</button></div>
             <div>${dateChips}</div>
           </div>`;
-        metaBlock = `<div class="card-meta"><b>${esc(dPreparer)}</b> → <b>${esc(dReviewer)}</b> · ${t.cadence==='quarterly'?'Quarterly':'Monthly'}</div>`;
+        metaBlock = `<div class="card-meta"><b>${esc(dPreparer)}</b> → <b>${esc(dReviewer)}</b> · ${getCadence(t)==='quarterly'?'Quarterly':'Monthly'}</div>`;
       }
 
       html += `
@@ -1913,11 +2136,16 @@ function renderList(){
       const val = (subTitleDrafts[eid]||'').trim();
       if(!val) return;
       const sub = (subtasksMap[parentId]||[]).find(s=>s.id===subId);
+      const oldTitle = sub ? sub.title : '';
       if(sub) sub.title = val;
       await saveSubtasksMap();
       editingSubTitle.delete(eid);
       delete subTitleDrafts[eid];
       render();
+      if(oldTitle !== val){
+        const parentT3 = findTaskByUid(parentId);
+        logActivity('sub-task renamed', `"${oldTitle}" → "${val}" (under ${parentT3?getField(parentT3,'deliverable'):parentId})`);
+      }
     });
   });
   container.querySelectorAll('[data-subdel]').forEach(el=>{
@@ -1957,7 +2185,8 @@ function renderList(){
         preparer:getField(task,'preparer'),
         reviewer:getField(task,'reviewer'),
         contact:getField(task,'contact'),
-        wd: canEditWD ? String(getOffset(task)) : undefined
+        wd: canEditWD ? String(getOffset(task)) : undefined,
+        cadence: getCadence(task)
       };
       render();
     });
@@ -1976,6 +2205,15 @@ function renderList(){
       if(!fieldDrafts[id]) fieldDrafts[id] = {};
       fieldDrafts[id][key] = el.value;
     });
+    // <select> elements (e.g. the cadence dropdown) reliably fire 'change' — 'input'
+    // isn't guaranteed for them across all browsers, so listen for both.
+    if(el.tagName === 'SELECT'){
+      el.addEventListener('change', ()=>{
+        const [id, key] = el.dataset.fieldedit.split('|');
+        if(!fieldDrafts[id]) fieldDrafts[id] = {};
+        fieldDrafts[id][key] = el.value;
+      });
+    }
   });
   container.querySelectorAll('[data-savefields]').forEach(el=>{
     el.addEventListener('click', async ()=>{
@@ -1988,6 +2226,7 @@ function renderList(){
         preparer: (draft.preparer||'').trim(),
         reviewer: (draft.reviewer||'').trim() || '—',
         contact: (draft.contact||'').trim(),
+        cadence: (draft.cadence === 'quarterly') ? 'quarterly' : 'monthly',
       };
       if(draft.wd !== undefined){
         const wdRaw = String(draft.wd).trim();
@@ -2001,10 +2240,25 @@ function renderList(){
         patch.raw = 'WD'+(num>=0?'+':'')+num;
       }
       delete fieldEditErrors[id];
+      const before = {
+        deliverable: getField(task,'deliverable'),
+        preparer: getField(task,'preparer'),
+        reviewer: getField(task,'reviewer'),
+        contact: getField(task,'contact'),
+        raw: getRaw(task),
+        cadence: getCadence(task)
+      };
       await setFields(id, patch);
       editingFieldTasks.delete(id);
       delete fieldDrafts[id];
       render();
+      const FIELD_LABELS = {deliverable:'Task name', preparer:'Owner', reviewer:'Reviewer', contact:'Contact', raw:'WD', cadence:'Cadence'};
+      const changes = [];
+      for(const key of ['deliverable','preparer','reviewer','contact','cadence']){
+        if((before[key]||'') !== (patch[key]||'')) changes.push(`${FIELD_LABELS[key]}: "${before[key]||'—'}" → "${patch[key]||'—'}"`);
+      }
+      if(patch.raw !== undefined && before.raw !== patch.raw) changes.push(`${FIELD_LABELS.raw}: "${before.raw}" → "${patch.raw}"`);
+      if(changes.length) logActivity('task fields changed', `${patch.deliverable}: ${changes.join('; ')}`);
     });
   });
 
@@ -2059,14 +2313,21 @@ function renderList(){
       const labelEl = container.querySelector(`[data-refuidlabel="${id}"]`);
       const urlEl = container.querySelector(`[data-refuidurl="${id}"]`);
       const file = pendingRefFiles[id];
-      const result = await addReference(id, labelEl.value, urlEl.value, file);
+      const scope = pendingRefScope[id] || 'evergreen';
+      const result = await addReference(id, labelEl.value, urlEl.value, file, scope);
       if(result && !result.ok){
         refAddErrors[id] = result.error;
         render();
         return;
       }
       delete pendingRefFiles[id];
+      delete pendingRefScope[id];
       delete refAddErrors[id];
+    });
+  });
+  container.querySelectorAll('[data-refscope]').forEach(el=>{
+    el.addEventListener('change', ()=>{
+      if(el.checked) pendingRefScope[el.dataset.refscope] = el.value;
     });
   });
   container.querySelectorAll('[data-refbrowse]').forEach(el=>{
@@ -2183,6 +2444,71 @@ function renderNotesPanel(){
   });
 }
 
+function fmtHistoryTime(ts){
+  const d = new Date(ts);
+  const now = new Date();
+  const sameDay = d.toDateString() === now.toDateString();
+  const time = d.toLocaleTimeString([], {hour:'numeric', minute:'2-digit'});
+  return sameDay ? time : `${d.toLocaleDateString([], {month:'short', day:'numeric'})}, ${time}`;
+}
+
+function renderHistoryDrawer(){
+  const listEl = document.getElementById('historyList');
+  if(!listEl) return; // drawer not in the DOM yet on first paint
+  const whoEl = document.getElementById('historyWhoami');
+  if(whoEl) whoEl.textContent = getCurrentUserName() || '(no name set)';
+  if(!activityLog.length){
+    listEl.innerHTML = `<div class="history-empty">No activity yet. Changes made by anyone will show up here as they happen.</div>`;
+    return;
+  }
+  listEl.innerHTML = activityLog.map(e=>`
+    <div class="history-item">
+      <div class="h-line1">
+        <span class="h-user">${esc(e.user || 'Unknown')}</span>
+        <span class="h-time">${fmtHistoryTime(e.ts)}</span>
+      </div>
+      <div class="h-action"><b>${esc(e.action)}</b>${e.detail ? ' — '+esc(e.detail) : ''}</div>
+    </div>`).join('');
+}
+
+function openHistoryDrawer(){
+  document.getElementById('historyDrawer').classList.add('open');
+  document.getElementById('historyBackdrop').classList.add('show');
+}
+function closeHistoryDrawer(){
+  document.getElementById('historyDrawer').classList.remove('open');
+  document.getElementById('historyBackdrop').classList.remove('show');
+}
+
+function openNameModal(){
+  const input = document.getElementById('nameModalInput');
+  input.value = getCurrentUserName() || '';
+  document.getElementById('nameModalBackdrop').classList.add('show');
+  input.focus();
+  input.select();
+}
+function closeNameModal(){
+  document.getElementById('nameModalBackdrop').classList.remove('show');
+}
+
+try{
+  document.getElementById('historyFab').addEventListener('click', openHistoryDrawer);
+  document.getElementById('historyClose').addEventListener('click', closeHistoryDrawer);
+  document.getElementById('historyBackdrop').addEventListener('click', closeHistoryDrawer);
+  document.getElementById('historyChangeName').addEventListener('click', openNameModal);
+  document.getElementById('nameModalSave').addEventListener('click', ()=>{
+    const val = document.getElementById('nameModalInput').value.trim();
+    if(!val) return;
+    setCurrentUserName(val);
+    closeNameModal();
+    renderHistoryDrawer();
+  });
+  document.getElementById('nameModalInput').addEventListener('keydown', (e)=>{
+    if(e.key === 'Enter') document.getElementById('nameModalSave').click();
+  });
+}catch(e){
+  console.error('Could not wire up History UI', e);
+}
 function render(){
   setAccent(activeTab);
   renderMonthBar();
@@ -2277,32 +2603,6 @@ document.getElementById('firebaseTestBtn')
 document.getElementById('tabFlex').addEventListener('click', ()=>{ activeTab='flex'; clearAddTaskForm(); render(); });
 document.getElementById('tabDiv').addEventListener('click', ()=>{ activeTab='div'; clearAddTaskForm(); render(); });
 document.getElementById('hiddenToggle').addEventListener('click', ()=>{ hiddenPanelOpen = !hiddenPanelOpen; renderHiddenBar(); });
-document.getElementById('saveChangesBtn').addEventListener('click', ()=>{ exportBackup(); });
-document.getElementById('loadChangesBtn').addEventListener('click', async ()=>{
-  if(FS_ACCESS_SUPPORTED){
-    try{
-      const [handle] = await window.showOpenFilePicker({
-        types: [{description:'JSON backup', accept:{'application/json':['.json']}}]
-      });
-      linkedFileHandle = handle;
-      linkedFileName = handle.name;
-      const file = await handle.getFile();
-      await importBackup(file);
-      updateLinkStatusUI();
-      return;
-    }catch(e){
-      if(e && e.name === 'AbortError') return; // user closed the picker — do nothing
-      console.error('showOpenFilePicker failed, falling back to plain file input', e);
-      // fall through to the plain <input type=file> fallback below
-    }
-  }
-  document.getElementById('loadChangesInput').click();
-});
-document.getElementById('loadChangesInput').addEventListener('change', async (e)=>{
-  const file = e.target.files[0];
-  if(file) await importBackup(file);
-  e.target.value = '';
-});
 document.getElementById('qToggle').addEventListener('click', ()=>{ showQuarterlyAlways = !showQuarterlyAlways; render(); });
 document.getElementById('noteAddBtn').addEventListener('click', async ()=>{
   const select = document.getElementById('noteTaskSelect');
@@ -2317,13 +2617,9 @@ document.getElementById('noteText').addEventListener('keydown', (e)=>{
 function updatePersistHint(){
   const persistHintEl = document.getElementById('persistHint');
   if(!persistHintEl) return;
-  const baseHint = persistenceMode === 'session'
-    ? 'Checkboxes, notes, and reference guides save for this session only — this browser is blocking local storage for a local file, so they will reset when you close the file.'
-    : 'Everything also auto-saves in this browser, tied to this file, as a backup layer — but that resets if the file is moved, redownloaded, or opened in a different browser.';
-  const linkHint = FS_ACCESS_SUPPORTED
-    ? ' For real cross-session saving: click "Save Changes" once to link a file on your computer — every change writes there automatically after that. Click "Load Changes" and pick that file to resume next time you open this tool.'
-    : ' This tool is opened as a local file, so true auto-save-to-disk isn\'t available here — click "Save Changes" every time you want a backup, and "Load Changes" every time you reopen this file to bring your progress back.';
-  persistHintEl.textContent = baseHint + linkHint;
+  persistHintEl.textContent = persistenceMode === 'session'
+    ? 'This browser is blocking local storage, so changes won\'t stick around in this browser — but everything is also synced live to the shared calendar, so it\'s not lost.'
+    : 'Everything syncs live to the shared calendar as you go, so any device signed into it stays up to date automatically.';
 }
 
 /* ---------------- New Checkbox form ---------------- */
@@ -2331,12 +2627,14 @@ function populateAddTaskForm(){
   const sel = document.getElementById('atPhase');
   sel.innerHTML = phaseOrder().map(p=>`<option value="${esc(p)}">${esc(p)}</option>`).join('');
   document.getElementById('atTabLabel').textContent = activeTab==='flex' ? 'Flex Close' : 'Division Close';
+  document.getElementById('atCadence').value = 'monthly';
 }
 function clearAddTaskForm(){
   document.getElementById('addTaskForm').style.display = 'none';
   ['atName','atWD','atPreparer','atReviewer','atNotes','atRefLabel','atRefUrl'].forEach(id=>{
     document.getElementById(id).value = '';
   });
+  document.getElementById('atCadence').value = 'monthly';
   const err = document.getElementById('atError');
   err.textContent = ''; err.classList.remove('show');
 }
@@ -2361,6 +2659,7 @@ document.getElementById('atSubmit').addEventListener('click', async ()=>{
   const refLabel = document.getElementById('atRefLabel').value.trim();
   const refUrl = document.getElementById('atRefUrl').value.trim();
   const phase = document.getElementById('atPhase').value;
+  const cadence = document.getElementById('atCadence').value === 'quarterly' ? 'quarterly' : 'monthly';
 
   if(!name){ showAtError('Please enter a task name.'); return; }
   const offsetNum = parseInt(wdRaw.replace(/^\+/,''), 10);
@@ -2371,7 +2670,7 @@ document.getElementById('atSubmit').addEventListener('click', async ()=>{
   const raw = 'WD'+(offsetNum>=0?'+':'')+offsetNum;
   const newTask = {
     id, tab:activeTab, phase, deliverable:name, preparer, reviewer,
-    cadence:'monthly', offset:offsetNum, raw, notes, custom:true
+    cadence, offset:offsetNum, raw, notes, custom:true
   };
   await addCustomTask(newTask);
   if(refLabel && refUrl){ await addReference(id, refLabel, refUrl); }
@@ -2528,6 +2827,8 @@ async function init(){
   ]);
   updateLinkStatusUI();
   await refreshAll();
+  renderHistoryDrawer();
+  if(!getCurrentUserName()) openNameModal();
 }
 init();
 </script>
