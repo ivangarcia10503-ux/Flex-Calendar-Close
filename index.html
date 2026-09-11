@@ -717,7 +717,10 @@ import {
   query,
   orderBy,
   limit,
-  serverTimestamp
+  serverTimestamp,
+  getCountFromServer,
+  getDocs,
+  writeBatch
 } from
 'https://www.gstatic.com/firebasejs/12.2.1/firebase-firestore.js';
 
@@ -869,6 +872,32 @@ let historyCollectionRef = null;
 const HISTORY_LIMIT = 300; // keep the live log bounded — plenty for an audit trail
 let activityLog = [];
 
+// Firestore itself has no auto-expiry, so without this the "history" collection would
+// grow forever even though the app only ever displays the newest HISTORY_LIMIT entries.
+// This keeps the actual stored count capped at HISTORY_LIMIT too, deleting the oldest
+// entries once there's a meaningful backlog. The count check is a random ~1-in-10 chance
+// per log event (not every single time) since even a cheap aggregation read adds up if
+// run on every checkbox click — this still catches the backlog quickly in practice.
+const HISTORY_PRUNE_CHECK_CHANCE = 0.1;
+
+async function pruneHistoryIfNeeded(){
+  if(!historyCollectionRef) return;
+  if(Math.random() > HISTORY_PRUNE_CHECK_CHANCE) return;
+  try{
+    const countSnap = await getCountFromServer(historyCollectionRef);
+    const total = countSnap.data().count;
+    if(total <= HISTORY_LIMIT) return;
+    const excess = total - HISTORY_LIMIT;
+    const oldestSnap = await getDocs(query(historyCollectionRef, orderBy('ts', 'asc'), limit(excess)));
+    if(oldestSnap.empty) return;
+    const batch = writeBatch(db);
+    oldestSnap.forEach(d => batch.delete(d.ref));
+    await batch.commit();
+  }catch(e){
+    console.error('History prune failed (check Firestore rules allow delete on "history")', e);
+  }
+}
+
 async function logActivity(action, detail){
   if(!historyCollectionRef) return;
   try{
@@ -880,6 +909,7 @@ async function logActivity(action, detail){
       createdAt: serverTimestamp(),
       month: monthKey()
     });
+    pruneHistoryIfNeeded(); // fire-and-forget, never blocks the actual log write
   }catch(e){
     console.error('Could not write history entry (check Firestore rules for the "history" collection)', e);
   }
@@ -950,18 +980,18 @@ function fmtShort(d){
 const FLEX_TASKS = [
   {id:'f1', taskId:'S1', phase:'Pre-Close', task:'Perfect Pay', deliverable:'Perfect Pay', preparer:'J. Short', reviewer:'K. Hogg & DOA approvals', cadence:'monthly', offset:-1, note:'', raw:'WD-1',
     notes:'Ensure Perfect Pay is completed, sign offs are obtained and retained per DOA, and submission occurs for lender payment.'},
-  {id:'f2', taskId:'E1', phase:'Control', task:'End of Term', deliverable:'RTR-FS-06', preparer:'B. Coville', reviewer:'K. Hogg', cadence:'monthly', offset:1, note:'12pm EST', raw:'WD+1 (12pm EST)',
+  {id:'f2', taskId:'E1', phase:'Control', task:'End of Term', deliverable:'RTR-FS-06', preparer:'B. Coville', reviewer:'K. Hogg', cadence:'monthly', offset:1, note:'', raw:'WD+1',
     notes:'Complete RTR-FS-06.'},
-  {id:'f3', taskId:'B1', phase:'Control', task:'Bad Debt', deliverable:'Bad Debt Reserve', preparer:'—', reviewer:'K. Hogg', cadence:'monthly', offset:1, note:'7pm EST', raw:'WD+1 (7pm EST)',
+  {id:'f3', taskId:'B1', phase:'Control', task:'Bad Debt', deliverable:'Bad Debt Reserve', preparer:'—', reviewer:'K. Hogg', cadence:'monthly', offset:1, note:'', raw:'WD+1',
     notes:'Complete Flex Bad Debt Reserve and record adjustment in GL (if applicable). This includes RTR-FS-06 risk, perfect pay reconciliation adjustments, etc.'},
-  {id:'f4', taskId:'R1', phase:'Close', task:'Results', deliverable:'Order Results', preparer:'C. Lounsbery', reviewer:'R. Krider', cadence:'monthly', offset:1, note:'12pm EST', raw:'WD+1 (12pm EST)',
+  {id:'f4', taskId:'R1', phase:'Close', task:'Results', deliverable:'Order Results', preparer:'C. Lounsbery', reviewer:'R. Krider', cadence:'monthly', offset:1, note:'', raw:'WD+1',
     notes:'Submit to M. Pask team for final completion.'},
   {id:'f5', taskId:'R2', phase:'Close', task:'Misc reporting', deliverable:'Misc Income/Expense reporting', preparer:'M. Berlage', reviewer:'—', cadence:'monthly',
-    deadlines:[{offset:-1,note:'10AM EST'},{offset:1,note:'10AM EST'},{offset:2,note:'10AM EST'},{offset:3,note:'10AM EST'}], raw:'WD-1 / WD+1 / WD+2 / WD+3 (10AM EST)',
+    deadlines:[{offset:-1,note:''},{offset:1,note:''},{offset:2,note:''},{offset:3,note:''}], raw:'WD-1 / WD+1 / WD+2 / WD+3',
     notes:'Send to leadership throughout close to monitor movements in Misc.'},
-  {id:'f6', taskId:'C1', phase:'Record', task:'Commission', deliverable:'RFM Commission Accrual', preparer:'R. Krider', reviewer:'—', cadence:'monthly', offset:1, note:'5pm EST', raw:'WD+1 (5pm EST)',
+  {id:'f6', taskId:'C1', phase:'Record', task:'Commission', deliverable:'RFM Commission Accrual', preparer:'R. Krider', reviewer:'—', cadence:'monthly', offset:1, note:'', raw:'WD+1',
     notes:'Submit to P. Lange for booking.'},
-  {id:'f7', taskId:'C2', phase:'Payroll', task:'Commission', deliverable:'RFM Commission Payment', preparer:'M. Berlage', reviewer:'R. Krider', cadence:'monthly', offset:3, note:'12pm EST', raw:'WD+3 (12pm EST)',
+  {id:'f7', taskId:'C2', phase:'Payroll', task:'Commission', deliverable:'RFM Commission Payment', preparer:'M. Berlage', reviewer:'R. Krider', cadence:'monthly', offset:3, note:'', raw:'WD+3',
     notes:'Calculate RFM Commission and submit to payroll for payment processing.'},
   {id:'f8', taskId:null, phase:'Reconciliation', task:'Perfect Pay', deliverable:'Perfect Pay Reconciliation', preparer:'M. Berlage', reviewer:'K. Hogg', cadence:'monthly', offset:30, offsetQE:15, raw:'WD+15 QE / WD+30 NQE',
     notes:'Complete perfect pay reconciliation. Evaluate reserve impact and adjust prior to quarter end.'},
@@ -995,7 +1025,7 @@ const DIV_TASKS = [
     notes:'Update Specific Listing with any material customer changes before quarter end. Send to M. Pask and D. Krachinsky teams by end of WD-2.'},
   {id:'d5', phase:'Pre-Close', task:'Bad Debt', deliverable:'Non ASC True Up Reserve', preparer:'K. Earl', reviewer:'B. Dunbar', cadence:'quarterly', offset:-2, raw:'WD-2',
     notes:'Calculate Non-ASC true-up reserve for "perfect pay" aged AR. Submit amount to M. Pask team for bad debt reconciliation.'},
-  {id:'d6', phase:'Pre-Close', task:'Bad Debt', deliverable:'PRELIMINARY Bad Debt Reserve', preparer:'Various', reviewer:'M. Pask and R. Krider', cadence:'monthly', offset:-1, note:'pm EST', raw:'WD-1 (pm EST)', contact:'See BU Leader Listing',
+  {id:'d6', phase:'Pre-Close', task:'Bad Debt', deliverable:'PRELIMINARY Bad Debt Reserve', preparer:'Various', reviewer:'M. Pask and R. Krider', cadence:'monthly', offset:-1, note:'', raw:'WD-1', contact:'See BU Leader Listing',
     notes:'Complete Preliminary Bad Debt Reserve for each division and communicate by WD-1.'},
   {id:'d7', phase:'Pre-Close', task:'Perfect Pay', deliverable:'Perfect Pay', preparer:'J. Short', reviewer:'K. Hogg & DOA approvals', cadence:'monthly', offset:-1, raw:'WD-1',
     notes:'Ensure Perfect Pay is completed, sign offs are obtained and retained per DOA, and submission occurs for lender payment.'},
@@ -1005,23 +1035,23 @@ const DIV_TASKS = [
     notes:'Only applicable through the remainder of Project Prism.'},
   {id:'d10', phase:'Close', task:'Bad Debt', deliverable:'3% Captive Revenue', preparer:'M. Pittillo', reviewer:'M. Pask', cadence:'monthly', offset:1, raw:'WD+1',
     notes:'Submit to M. Pask team for final bad debt general reserve completion.'},
-  {id:'d11', phase:'Close', task:'AR', deliverable:'AR Aging - BOBJ & IPE', preparer:'C. Reinbolt', reviewer:'M. Pask & R. Krider', cadence:'monthly', offset:2, note:'10am CST', raw:'WD+2 (10am CST)',
+  {id:'d11', phase:'Close', task:'AR', deliverable:'AR Aging - BOBJ & IPE', preparer:'C. Reinbolt', reviewer:'M. Pask & R. Krider', cadence:'monthly', offset:2, note:'', raw:'WD+2',
     notes:'Submit to M. Pask team for final completion.'},
-  {id:'d12', phase:'Close', task:'Bad Debt', deliverable:'FINAL Bad Debt Reserve', preparer:'Various', reviewer:'R. Krider', cadence:'monthly', offset:2, note:'5pm EST', raw:'WD+2 (5pm EST)', contact:'See BU Leader Listing',
+  {id:'d12', phase:'Close', task:'Bad Debt', deliverable:'FINAL Bad Debt Reserve', preparer:'Various', reviewer:'R. Krider', cadence:'monthly', offset:2, note:'', raw:'WD+2', contact:'See BU Leader Listing',
     notes:'Complete Final Bad Debt Reserve for each division and communicate by WD+2 and book (if applicable).'},
-  {id:'d13', phase:'Close', task:'Unacceptable Contingencies', deliverable:'Lease Commencement', preparer:'D. Krachinsky', reviewer:'R. Krider', cadence:'monthly', offset:2, note:'3pm EST', raw:'WD+2 (3pm EST)', contact:'See BU Leader Listing',
+  {id:'d13', phase:'Close', task:'Unacceptable Contingencies', deliverable:'Lease Commencement', preparer:'D. Krachinsky', reviewer:'R. Krider', cadence:'monthly', offset:2, note:'', raw:'WD+2', contact:'See BU Leader Listing',
     notes:'Send unacceptable contingencies to BU Finance leaders on WD+2 and ask them to book revenue reversal and provide evidence of entry. Submit Lease Commencement metric to Flex FP&A and J. Weiss.'},
-  {id:'d14', phase:'Close', task:'Unapplied Cash', deliverable:'Unapplied Cash Metric', preparer:'D. Krachinsky', reviewer:'R. Krider', cadence:'monthly', offset:3, note:'12pm EST', raw:'WD+3 (12pm EST)',
+  {id:'d14', phase:'Close', task:'Unapplied Cash', deliverable:'Unapplied Cash Metric', preparer:'D. Krachinsky', reviewer:'R. Krider', cadence:'monthly', offset:3, note:'', raw:'WD+3',
     notes:'Send UAC metrics to Controller for review. Retain approval.'},
-  {id:'d15', phase:'Close', task:'AR', deliverable:'BS Recast', preparer:'M. Pask', reviewer:'R. Krider', cadence:'quarterly', offset:5, note:'12pm EST', raw:'WD+5 (12pm EST)', contact:'See BU Leader Listing',
+  {id:'d15', phase:'Close', task:'AR', deliverable:'BS Recast', preparer:'M. Pask', reviewer:'R. Krider', cadence:'quarterly', offset:5, note:'', raw:'WD+5', contact:'See BU Leader Listing',
     notes:'Send to BU for entry or book (if applicable).'},
-  {id:'d16', phase:'Close', task:'Bad Debt', deliverable:'Bad Debt Reserve - IPE', preparer:'Various', reviewer:'M. Pask', cadence:'quarterly', offset:5, note:'12pm EST', raw:'WD+5 (12pm EST)',
+  {id:'d16', phase:'Close', task:'Bad Debt', deliverable:'Bad Debt Reserve - IPE', preparer:'Various', reviewer:'M. Pask', cadence:'quarterly', offset:5, note:'', raw:'WD+5',
     notes:'Complete IPE for each division on final bad debt reserve.'},
 ];
 
 const GENERAL_TIMELINE = [
   {label:'Revenue', offset:1, note:''},
-  {label:'P&L', offset:2, note:'8pm EST'},
+  {label:'P&L', offset:2, note:''},
   {label:'BS', offset:4, note:''},
 ];
 
@@ -1484,6 +1514,14 @@ function getRaw(task){
   if(o && o.raw !== undefined && o.raw !== '') return o.raw;
   return task.raw;
 }
+function getDeadlines(task){
+  const o = fieldOverrides[task.id];
+  if(o && Array.isArray(o.deadlines)) return o.deadlines;
+  return task.deadlines;
+}
+function formatDeadlinesRaw(deadlines){
+  return deadlines.map(d=>'WD'+(d.offset>=0?'+':'')+d.offset).join(' / ');
+}
 function getCadence(task){
   const o = fieldOverrides[task.id];
   if(o && (o.cadence === 'monthly' || o.cadence === 'quarterly')) return o.cadence;
@@ -1836,8 +1874,9 @@ function resolveOne(task, offsetVal){
 function resolvedDates(task){
   // returns array of {date, note, priorAnchored}
   if(task.special) return [];
-  if(task.deadlines){
-    return task.deadlines.map(d=>{
+  const deadlines = getDeadlines(task);
+  if(deadlines){
+    return deadlines.map(d=>{
       const r = resolveOne(task, d.offset);
       return {date:r.date, note:d.note, priorAnchored:r.priorAnchored};
     });
@@ -2013,15 +2052,25 @@ function renderList(){
       const dPreparer = getField(t,'preparer');
       const dReviewer = getField(t,'reviewer');
       const dContact = getField(t,'contact');
-      const canEditWD = !t.deadlines && !t.special;
+      const canEditWD = !t.special && !t.deadlines;
+      const isMultiWD = !!t.deadlines;
       const dRaw = getRaw(t);
 
       let cardTopBlock, metaBlock;
       if(isEditingFields){
-        const draft = fieldDrafts[t.id] || {deliverable:dName, preparer:dPreparer, reviewer:dReviewer, contact:dContact, wd: canEditWD ? String(getOffset(t)) : undefined, cadence: getCadence(t)};
+        const draft = fieldDrafts[t.id] || {
+          deliverable:dName, preparer:dPreparer, reviewer:dReviewer, contact:dContact,
+          wd: canEditWD ? String(getOffset(t)) : undefined,
+          wdmulti: isMultiWD ? getDeadlines(t).map(d=>d.offset).join(', ') : undefined,
+          cadence: getCadence(t)
+        };
         const wdField = canEditWD
           ? `<div class="field-edit-row">
                <input type="text" class="field-edit-input" data-fieldedit="${t.id}|wd" value="${esc(draft.wd)}" placeholder="WD number (e.g. -1, 0, +5, 10)">
+             </div>`
+          : isMultiWD
+          ? `<div class="field-edit-row">
+               <input type="text" class="field-edit-input" data-fieldedit="${t.id}|wdmulti" value="${esc(draft.wdmulti)}" placeholder="WD numbers, comma-separated (e.g. -1, 1, 2, 3)">
              </div>`
           : '';
         const draftCadence = draft.cadence === 'quarterly' ? 'quarterly' : 'monthly';
@@ -2166,7 +2215,8 @@ function renderList(){
     el.addEventListener('click', ()=>{
       const id = el.dataset.editfields;
       const task = findTaskByUid(id);
-      const canEditWD = !task.deadlines && !task.special;
+      const canEditWD = !task.special && !task.deadlines;
+      const isMultiWD = !!task.deadlines;
       editingFieldTasks.add(id);
       delete fieldEditErrors[id];
       fieldDrafts[id] = {
@@ -2175,6 +2225,7 @@ function renderList(){
         reviewer:getField(task,'reviewer'),
         contact:getField(task,'contact'),
         wd: canEditWD ? String(getOffset(task)) : undefined,
+        wdmulti: isMultiWD ? getDeadlines(task).map(d=>d.offset).join(', ') : undefined,
         cadence: getCadence(task)
       };
       render();
@@ -2227,6 +2278,23 @@ function renderList(){
         }
         patch.offset = num;
         patch.raw = 'WD'+(num>=0?'+':'')+num;
+      }
+      if(draft.wdmulti !== undefined){
+        const tokens = String(draft.wdmulti).split(',').map(s=>s.trim()).filter(s=>s!=='');
+        if(!tokens.length){
+          fieldEditErrors[id] = 'Please enter at least one WD number, comma-separated, e.g. -1, 1, 2, 3.';
+          render();
+          return;
+        }
+        const nums = tokens.map(t=>parseInt(t.replace(/^\+/,''), 10));
+        if(nums.some(n=>isNaN(n))){
+          fieldEditErrors[id] = 'Please enter valid WD numbers, comma-separated, e.g. -1, 1, 2, 3.';
+          render();
+          return;
+        }
+        const newDeadlines = nums.map(offset=>({offset, note:''}));
+        patch.deadlines = newDeadlines;
+        patch.raw = formatDeadlinesRaw(newDeadlines);
       }
       delete fieldEditErrors[id];
       const before = {
