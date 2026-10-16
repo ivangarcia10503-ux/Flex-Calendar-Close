@@ -762,7 +762,6 @@ async function saveCalendarState() {
       fieldOverrides,
       referencesMap,
       subtasksMap,
-      subCompleted,
       updatedAt: serverTimestamp(),
       lastEditedBy: getCurrentUserName() || "Unknown"
     }, { merge:true }
@@ -841,7 +840,10 @@ onSnapshot(
     if (!data) return;
     if(!data.stateMonth || data.stateMonth === monthKey()){
       notesList = data.notesList || [];
-      subCompleted = data.subCompleted || {};
+      // NOTE: sub-task completion is deliberately NOT read from here anymore. It used to
+      // live in this document as a map, and Firestore's {merge:true} never removes a key
+      // that's missing from a map — so an unchecked sub-task came straight back on the
+      // next snapshot. It now lives in the per-month document (see listenForCompletedMonth).
     }
     customTasks = data.customTasks || [];
     hiddenTasks = new Set(
@@ -1346,8 +1348,9 @@ async function loadSubCompletedForMonth(){
   ids.forEach(k=>{ subCompleted[k] = true; });
 }
 async function saveSubCompletedForMonth(){
-  await pSet('close-subcompleted:'+monthKey(), JSON.stringify(Object.keys(subCompleted)));
-  await saveCalendarState();
+  // Sub-task completion lives in the same per-month document as the main checkboxes, so a
+  // single write saves both and the parent can never disagree with its sub-tasks.
+  await saveCompletedForMonth();
 }
 function isSubDone(parentId, subId){ return !!subCompleted[subEid(parentId, subId)]; }
 
@@ -1368,27 +1371,47 @@ function syncParentFromSubtasksInMemory(parentId){
   return false;
 }
 async function syncParentFromSubtasks(parentId){
-  if(syncParentFromSubtasksInMemory(parentId)) await saveCompletedForMonth();
+  syncParentFromSubtasksInMemory(parentId);
+  // Always persist (don't rely on "did it change?"): render() may already have applied the
+  // derived value in memory, which would otherwise leave the stored copy stale.
+  await saveCompletedForMonth();
 }
-async function syncAllParentsFromSubtasks(){
+
+// True once the month document has told us which sub-tasks are done. Until then we don't
+// derive parent state from sub-tasks, so months saved before sub-task tracking existed keep
+// showing their parents exactly as they were stored.
+let subStateKnown = false;
+function syncAllParentsInMemory(){
+  if(!subStateKnown) return false;
+  let changed = false;
   for(const parentId of Object.keys(subtasksMap)){
-    await syncParentFromSubtasks(parentId);
+    if(syncParentFromSubtasksInMemory(parentId)) changed = true;
   }
+  return changed;
 }
 
 async function toggleSubComplete(parentId, subId){
   const eid = subEid(parentId, subId);
   const wasDone = !!subCompleted[eid];
+  const parentKey = storeKey(parentId);
+  const parentWasDone = !!completed[parentKey];
   if(wasDone) delete subCompleted[eid];
   else subCompleted[eid] = true;
-  const parentChanged = syncParentFromSubtasksInMemory(parentId);
+  syncParentFromSubtasksInMemory(parentId);
   render(); // instant visual feedback — no storage round trip in the way
-  // Persist afterward, in the background. The checkbox already shows the right
-  // state, so any storage latency (e.g. Claude.ai's host storage) no longer
-  // makes the click feel slow.
-  const saves = [saveSubCompletedForMonth()];
-  if(parentChanged) saves.push(saveCompletedForMonth());
-  await Promise.all(saves);
+  try{
+    // ONE write saves the sub-task AND the parent together (same document), so they
+    // can't drift apart the way two separate writes could.
+    await saveCompletedForMonth();
+  }catch(e){
+    // Roll back so the screen never shows something that didn't actually save.
+    if(wasDone) subCompleted[eid] = true; else delete subCompleted[eid];
+    if(parentWasDone) completed[parentKey] = true; else delete completed[parentKey];
+    render();
+    showSaveStatus('Checkbox could not sync. Please try again.', true);
+    console.error('Sub-task checkbox save failed', e);
+    return;
+  }
   const parent = findTaskByUid(parentId);
   const sub = (subtasksMap[parentId]||[]).find(s=>s.id===subId);
   const parentLabel = parent ? getField(parent,'deliverable') : parentId;
@@ -1794,9 +1817,36 @@ async function loadCompletedForMonth(){
 
 // Checkbox completion is stored in one Firestore document per month.
 // This avoids stale whole-calendar snapshots re-checking a box after it was unchecked.
+// One-time carry-over of sub-task checks that were saved the old way (a map inside the
+// shared calendarState document). Only runs for a month whose document has no sub-task list
+// yet, and clears the old map afterwards so it can never leak into another month.
+const legacyMigrationTried = new Set();
+async function migrateLegacySubCompleted(month){
+  if(legacyMigrationTried.has(month)) return;
+  legacyMigrationTried.add(month);
+  try{
+    const ref = doc(db, 'shared', 'calendarState');
+    const snap = await getDoc(ref);
+    const d = snap.exists() ? snap.data() : null;
+    if(!d || d.subCompletedMigrated || d.stateMonth !== month || month !== monthKey()) return;
+    const keys = Object.keys(d.subCompleted || {}).filter(k => d.subCompleted[k]);
+    if(!keys.length) return;
+    keys.forEach(k => { subCompleted[k] = true; });
+    subStateKnown = true;
+    syncAllParentsInMemory();
+    render();
+    await saveCompletedForMonth();                         // creates completedSubIds, so this never re-runs
+    // Mark the old data as consumed (and clear it) so it can only ever be carried over once.
+    await setDoc(ref, { subCompleted: {}, subCompletedMigrated: true }, { merge:true });
+  }catch(e){
+    console.error('Sub-task migration skipped', e);
+  }
+}
+
 function listenForCompletedMonth(){
   if(unsubscribeMonthCheckboxes) unsubscribeMonthCheckboxes();
   const listeningMonth = monthKey();
+  subStateKnown = false;
   unsubscribeMonthCheckboxes = onSnapshot(
     doc(db, 'months', listeningMonth),
     (snapshot) => {
@@ -1804,6 +1854,14 @@ function listenForCompletedMonth(){
       const data = snapshot.data() || {};
       completed = {};
       (data.completedIds || []).forEach(id => { completed[storeKey(id)] = true; });
+      if(Array.isArray(data.completedSubIds)){
+        subCompleted = {};
+        data.completedSubIds.forEach(k => { subCompleted[k] = true; });
+        subStateKnown = true;
+      } else {
+        // Month saved before sub-task tracking moved here — carry the old data over once.
+        migrateLegacySubCompleted(listeningMonth);
+      }
       render();
     },
     (err) => {
@@ -1817,11 +1875,16 @@ async function saveCompletedForMonth(){
   const ids = Object.keys(completed)
     .filter(k=>k.startsWith(prefix))
     .map(k=>k.slice(prefix.length));
+  // Arrays are replaced wholesale by {merge:true} (maps are merged key-by-key), which is
+  // exactly why both lists are stored as arrays: removing an item actually removes it.
+  const subIds = Object.keys(subCompleted).filter(k => subCompleted[k]);
   await Promise.all([
     pSet('close-completed:'+monthKey(), JSON.stringify(ids)),
+    pSet('close-subcompleted:'+monthKey(), JSON.stringify(subIds)),
     registerMonthInIndex(),
     setDoc(doc(db, 'months', monthKey()), {
       completedIds: ids,
+      completedSubIds: subIds,
       updatedAt: serverTimestamp(),
       lastEditedBy: getCurrentUserName() || 'Unknown'
     }, { merge:true })
@@ -2567,6 +2630,7 @@ try{
   console.error('Could not wire up History UI', e);
 }
 function render(){
+  syncAllParentsInMemory(); // parents always reflect their sub-tasks, whatever updated the state
   setAccent(activeTab);
   renderMonthBar();
   renderTabs();
@@ -2583,7 +2647,6 @@ async function refreshAll(){
   await loadCompletedForMonth();
   await loadNotesForMonth();
   await loadSubCompletedForMonth();
-  await syncAllParentsFromSubtasks();
   render();
   listenForCompletedMonth();
 }
