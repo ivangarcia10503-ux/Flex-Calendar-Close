@@ -567,7 +567,7 @@ footer{margin-top:30px; text-align:center; font-size:0.72rem; color:var(--ink-so
       <button class="navbtn" id="nextMonth">›</button>
     </div>
     <div class="center">
-      <span class="qe-badge" id="qeBadge" style="display:none;">Quarter End</span>
+      <span class="qe-badge" id="qeBadge" style="display:none;">Quarterly</span>
       <span class="today-link" id="todayLink">Jump to current month</span>
     </div>
   </div>
@@ -622,7 +622,7 @@ footer{margin-top:30px; text-align:center; font-size:0.72rem; color:var(--ink-so
       <label>Cadence
         <select id="atCadence">
           <option value="monthly">Monthly — shows up every month</option>
-          <option value="quarterly">Quarterly — only shows in Mar / Jun / Sep / Dec</option>
+          <option value="quarterly">Quarterly — only shows in Jan / Apr / Jul / Oct</option>
         </select>
       </label>
     </div>
@@ -964,7 +964,7 @@ function addBizDays(anchor, n){
   }
   return d;
 }
-function isQuarterEndMonth(monthIdx){ return [2,5,8,11].includes(monthIdx); } // Mar,Jun,Sep,Dec (0-indexed)
+function isQuarterEndMonth(monthIdx){ return [0,3,6,9].includes(monthIdx); } // Jan,Apr,Jul,Oct (0-indexed) — the months quarterly items live in
 function fmtDate(d){
   return d.toLocaleDateString('en-US',{weekday:'short', month:'short', day:'numeric'});
 }
@@ -974,9 +974,9 @@ function fmtShort(d){
 
 /* ---------------- Data ---------------- */
 // offset: business days from this month's WD0 anchor (last business day of month)
-// offsetQE: alternate offset used only when the selected month is a quarter-end month
+// offsetQE: alternate offset used only when the selected month is a quarterly month (Jan/Apr/Jul/Oct)
 // anchor: 'this' (default) or 'prior' (uses last business day of PRIOR month as WD0)
-// cadence: 'monthly' | 'quarterly' (quarterly tasks are hidden outside Mar/Jun/Sep/Dec unless toggled)
+// cadence: 'monthly' | 'quarterly' (quarterly tasks are hidden outside Jan/Apr/Jul/Oct unless toggled)
 // deadlines: optional array of {offset, note} for tasks with multiple due dates in one month
 
 const FLEX_TASKS = [
@@ -2141,7 +2141,7 @@ function renderList(){
           <div class="field-edit-row">
             <select class="field-edit-input" data-fieldedit="${t.id}|cadence">
               <option value="monthly" ${draftCadence==='monthly'?'selected':''}>Monthly — shows up every month</option>
-              <option value="quarterly" ${draftCadence==='quarterly'?'selected':''}>Quarterly — only shows in Mar / Jun / Sep / Dec</option>
+              <option value="quarterly" ${draftCadence==='quarterly'?'selected':''}>Quarterly — only shows in Jan / Apr / Jul / Oct</option>
             </select>
           </div>`;
         const errText = fieldEditErrors[t.id] ? `<div class="field-edit-error">${esc(fieldEditErrors[t.id])}</div>` : '';
@@ -2180,7 +2180,7 @@ function renderList(){
           <div class="card-body">
             ${cardTopBlock}
             ${metaBlock}
-            <div class="deadline-raw mono">${esc(dRaw)}${t.offsetQE!==undefined?' (adjusts on quarter-end months)':''}</div>
+            <div class="deadline-raw mono">${esc(dRaw)}${t.offsetQE!==undefined?' (adjusts on quarterly months)':''}</div>
             ${dContact?`<div class="contact-line">Contacts: ${esc(dContact)}</div>`:''}
             ${notesBlock}
             ${subtasksBlock}
@@ -2661,7 +2661,7 @@ function renderCalPopover(){
   grid.innerHTML = MONTHS_SHORT.map((m,i)=>{
     const isSel = (pickerYear===curYear && i===curMonth);
     const isQE = isQuarterEndMonth(i);
-    return `<button class="cal-month-btn ${isSel?'sel':''} ${isQE?'qe':''}" data-pickmonth="${i}" title="${isQE?'Quarter end':''}">${m}</button>`;
+    return `<button class="cal-month-btn ${isSel?'sel':''} ${isQE?'qe':''}" data-pickmonth="${i}" title="${isQE?'Quarterly month':''}">${m}</button>`;
   }).join('');
   grid.querySelectorAll('[data-pickmonth]').forEach(btn=>{
     btn.addEventListener('click', async ()=>{
